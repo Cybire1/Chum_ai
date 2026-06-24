@@ -22,9 +22,19 @@ import type {
 
 const BASE = (process.env.EXPO_PUBLIC_HURU_BASE ?? "").trim();
 const KEY = process.env.EXPO_PUBLIC_HURU_KEY ?? "";
-const MOCK = process.env.EXPO_PUBLIC_MOCK === "1" || BASE === "";
+
+// Direct 0G compute (no relay): call a 0G provider's OpenAI-compatible endpoint
+// with a signed app-sk access token. The token only authorizes that provider's
+// funded sub-account — it is NOT the wallet private key.
+const ZG_ENDPOINT = (process.env.EXPO_PUBLIC_0G_ENDPOINT ?? "").trim();
+const ZG_TOKEN = (process.env.EXPO_PUBLIC_0G_TOKEN ?? "").trim();
+const ZG_MODEL = (process.env.EXPO_PUBLIC_0G_MODEL ?? "deepseek-v4-flash").trim();
+const DIRECT = ZG_ENDPOINT !== "" && ZG_TOKEN !== "";
+
+const MOCK = process.env.EXPO_PUBLIC_MOCK === "1" || (!DIRECT && BASE === "");
 
 export const isMock = MOCK;
+export const isDirect = DIRECT;
 
 class ApiError extends Error {
   constructor(
@@ -50,14 +60,18 @@ async function consumerEmail(): Promise<string> {
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 async function chat(messages: ChatMessage[]): Promise<string> {
-  const res = await fetch(`${BASE}/v1/chat/completions`, {
+  const url = DIRECT ? `${ZG_ENDPOINT}/chat/completions` : `${BASE}/v1/chat/completions`;
+  const headers: Record<string, string> = DIRECT
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${ZG_TOKEN}` }
+    : {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${KEY}`,
+        "X-Consumer-Email": await consumerEmail(),
+      };
+  const res = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${KEY}`,
-      "X-Consumer-Email": await consumerEmail(),
-    },
-    body: JSON.stringify({ model: "huru/chat-1", messages }),
+    headers,
+    body: JSON.stringify({ model: DIRECT ? ZG_MODEL : "huru/chat-1", messages }),
   });
   const json = (await res.json().catch(() => ({}))) as {
     choices?: { message?: { content?: string } }[];

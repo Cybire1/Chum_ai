@@ -71,10 +71,21 @@ npm run dev                      # serves http://localhost:3000
 ```bash
 npm install
 npx expo install --fix
-cp .env.example .env             # EXPO_PUBLIC_HURU_BASE=<relay url>, EXPO_PUBLIC_MOCK=0
+cp .env.example .env             # configure how the app reaches 0G (see below)
 npx expo start                   # press i for iOS simulator / scan in Expo Go
 ```
-> The app ships with a built-in **mock backend** (`EXPO_PUBLIC_MOCK=1`) so the UI runs offline without the relay.
+
+### How the app reaches 0G — three modes (set in `.env`)
+1. **Direct (what the live demo uses).** The app calls a 0G provider's OpenAI-compatible endpoint **directly** with a signed **`app-sk` access token** — no relay, and **no private key in the app**. The token only authorizes that provider's funded sub-account (not the wallet), so it can't drain your wallet or ledger.
+   ```
+   EXPO_PUBLIC_0G_ENDPOINT=https://<provider-endpoint>/v1/proxy
+   EXPO_PUBLIC_0G_MODEL=deepseek-v4-flash
+   EXPO_PUBLIC_0G_TOKEN=app-sk-…        # per-provider; NEVER commit a real token
+   ```
+2. **Relay (production-correct).** Point the app at the **Huru** relay (`/relay`); the funded wallet stays server-side and the app stays keyless: `EXPO_PUBLIC_HURU_BASE=<relay url>` + `EXPO_PUBLIC_MOCK=0`. Best for real users (no per-device wallet, no token in the bundle).
+3. **Mock (offline).** `EXPO_PUBLIC_MOCK=1` — the UI runs with canned replies, no network. Lets you explore the app with zero setup.
+
+> Either way, inference runs in a **0G TEE enclave on mainnet** — the difference is only *who holds the signing credential*.
 
 ---
 
