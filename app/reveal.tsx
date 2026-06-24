@@ -86,7 +86,7 @@ export default function Reveal() {
   const share = async (reply: Reply) => {
     // TODO: render a branded, auto-anonymized share CARD (view-shot) — v0 shares text.
     try {
-      await Share.share({ message: `${reply.text}\n\n— drafted with Wing` });
+      await Share.share({ message: `${reply.text}\n\n— drafted with Chum` });
     } catch {
       // cancelled
     }

@@ -44,7 +44,7 @@ export default function Paywall() {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.nav}>
           <View style={{ width: 36 }} />
-          <Text style={styles.navTitle}>Wing Unlimited</Text>
+          <Text style={styles.navTitle}>Chum Unlimited</Text>
           <PressableScale onPress={() => router.back()} accessibilityLabel="Close" style={styles.close}>
             <Text style={styles.closeGlyph}>✕</Text>
           </PressableScale>

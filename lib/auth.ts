@@ -4,9 +4,9 @@ import * as SecureStore from "expo-secure-store";
 // the founder's "The Bell" app. The device_id provisions an anonymous huru
 // consumer (see api.ensureAuth); the ct_ token + consumer_id are cached here.
 
-const K_DEVICE = "wing_device_id";
-const K_TOKEN = "wing_consumer_token";
-const K_CONSUMER = "wing_consumer_id";
+const K_DEVICE = "chum_device_id";
+const K_TOKEN = "chum_consumer_token";
+const K_CONSUMER = "chum_consumer_id";
 
 function rand(): string {
   // RFC4122-ish v4 without extra deps.

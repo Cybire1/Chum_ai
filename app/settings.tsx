@@ -67,7 +67,7 @@ export default function Settings() {
           <Section title="PRIVACY">
             <Row
               label="App lock"
-              hint={canLock ? "Require Face ID to open Wing" : "No biometrics enrolled on this device"}
+              hint={canLock ? "Require Face ID to open Chum" : "No biometrics enrolled on this device"}
               right={
                 <Switch
                   value={lock}
@@ -80,7 +80,7 @@ export default function Settings() {
             <Tap label="Delete all local sessions" onPress={deleteSessions} />
             <View style={styles.note}>
               <Text style={styles.noteText}>
-                Wing reads your screenshots on your device and processes chats in a sealed enclave.
+                Chum reads your screenshots on your device and processes chats in a sealed enclave.
                 Conversations are never stored — not on our servers, not anywhere.
               </Text>
             </View>
@@ -90,12 +90,12 @@ export default function Settings() {
             <Tap label="Restore purchases" onPress={() => Alert.alert("Restore", "No active purchases found.")} />
             <Tap
               label="Contact support"
-              onPress={() => Linking.openURL("mailto:support@buddy.ai?subject=Wing").catch(() => {})}
+              onPress={() => Linking.openURL("mailto:support@chumai.xyz?subject=Chum").catch(() => {})}
             />
             <Tap label="Start fresh" destructive onPress={startFresh} />
           </Section>
 
-          <Text style={styles.version}>Wing · Buddy AI · v0.1.0</Text>
+          <Text style={styles.version}>Chum · Chum AI · v0.1.0</Text>
         </ScrollView>
       </SafeAreaView>
     </View>

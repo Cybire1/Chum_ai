@@ -11,7 +11,7 @@ export function AppLock({ onUnlock }: { onUnlock: () => void }) {
       <View style={styles.badge}>
         <Text style={styles.glyph}>􀎡</Text>
       </View>
-      <Text style={styles.title}>Wing is locked</Text>
+      <Text style={styles.title}>Chum is locked</Text>
       <Text style={styles.sub}>Your conversations stay on your device.</Text>
       <Button label="Unlock" onPress={onUnlock} style={{ marginTop: space.xl, minWidth: 200 }} />
     </View>

@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as LocalAuthentication from "expo-local-authentication";
 
-const K_ENABLED = "wing_applock_enabled";
+const K_ENABLED = "chum_applock_enabled";
 
 export async function canUseLock(): Promise<boolean> {
   try {
@@ -30,7 +30,7 @@ export async function setLockEnabled(on: boolean): Promise<void> {
 }
 
 export async function authenticate(
-  reason = "Unlock Wing",
+  reason = "Unlock Chum",
 ): Promise<boolean> {
   try {
     const r = await LocalAuthentication.authenticateAsync({

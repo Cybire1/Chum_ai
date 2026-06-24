@@ -44,7 +44,7 @@ export async function ensureAuth(): Promise<void> {
 
 async function consumerEmail(): Promise<string> {
   const id = await getDeviceId();
-  return `${id.replace(/[^a-z0-9]/gi, "").slice(0, 24)}@wing.app`;
+  return `${id.replace(/[^a-z0-9]/gi, "").slice(0, 24)}@chum.app`;
 }
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };

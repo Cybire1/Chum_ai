@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // locally to demo the gate; production wires it to the IAP receipt -> huru
 // /v1/consumers/{id}/iap response (see BUILD_BRIEF.md §6.6).
 
-const K = "wing_entitled";
+const K = "chum_entitled";
 let cached = false;
 const listeners = new Set<() => void>();
 

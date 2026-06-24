@@ -34,7 +34,7 @@ export default function Decode() {
   const share = async (d: DecodeResponse) => {
     try {
       await Share.share({
-        message: `The read: ${verdictLabel[d.verdict]} (${d.confidence}%)\n→ ${d.suggested_move}\n\n— Wing`,
+        message: `The read: ${verdictLabel[d.verdict]} (${d.confidence}%)\n→ ${d.suggested_move}\n\n— Chum`,
       });
     } catch {
       // cancelled

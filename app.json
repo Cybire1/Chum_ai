@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Wing",
-    "slug": "wing",
-    "scheme": "wing",
+    "name": "Chum AI",
+    "slug": "chum-ai",
+    "scheme": "chum",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -10,15 +10,15 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "ai.buddy.wing",
+      "bundleIdentifier": "xyz.chumai.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSFaceIDUsageDescription": "Use Face ID to lock Wing so only you can open your conversations.",
-        "NSPhotoLibraryUsageDescription": "Wing reads the screenshots you pick on your device to draft replies. Screenshots never leave your phone."
+        "NSFaceIDUsageDescription": "Use Face ID to lock Chum so only you can open your conversations.",
+        "NSPhotoLibraryUsageDescription": "Chum reads the screenshots you pick on your device to draft replies. Screenshots never leave your phone."
       }
     },
     "android": {
-      "package": "ai.buddy.wing",
+      "package": "xyz.chumai.app",
       "predictiveBackGestureEnabled": false
     },
     "experiments": {

@@ -13,7 +13,7 @@ import type { Persona } from "../lib/types";
 
 const CARDS = [
   {
-    eyebrow: "WING",
+    eyebrow: "CHUM",
     title: "Never send a dry text again.",
     body: "Drop in the conversation. Get back the one reply that actually lands — in your voice.",
   },

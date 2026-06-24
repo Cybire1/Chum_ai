@@ -42,7 +42,7 @@ export default function RootLayout() {
   }, []);
 
   const unlock = async () => {
-    const ok = await authenticate("Unlock Wing");
+    const ok = await authenticate("Unlock Chum");
     if (ok) setLocked(false);
   };
 

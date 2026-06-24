@@ -80,7 +80,7 @@ export default function Home() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.header}>
-              <Text style={styles.brand}>Wing</Text>
+              <Text style={styles.brand}>Chum</Text>
               <PressableScale
                 onPress={() => router.push("/settings")}
                 accessibilityRole="button"

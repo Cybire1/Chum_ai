@@ -1,4 +1,4 @@
-// Wing design tokens. Dark, premium, warm. One ember accent.
+// Chum design tokens. Dark, premium, warm. One ember accent.
 // Result/share cards are the hero UI — keep them feeling expensive.
 
 export const colors = {
