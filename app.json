@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Wing",
+    "slug": "wing",
+    "scheme": "wing",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0A0C",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ai.buddy.wing",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Use Face ID to lock Wing so only you can open your conversations.",
+        "NSPhotoLibraryUsageDescription": "Wing reads the screenshots you pick on your device to draft replies. Screenshots never leave your phone."
+      }
+    },
+    "android": {
+      "package": "ai.buddy.wing",
+      "predictiveBackGestureEnabled": false
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-local-authentication",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0A0C"
+        }
+      ]
+    ]
+  }
+}
