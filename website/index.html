@@ -91,7 +91,6 @@
     <div style="position:relative;z-index:2;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.04fr .96fr;gap:44px;align-items:center;min-height:604px">
       <div style="padding:22px 0">
         <h1 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:clamp(2.7rem,5.1vw,4.9rem);line-height:.95;letter-spacing:-.035em;margin:0 0 22px">Your whole life, in one AI.<br><span style="color:var(--accent,#F5356E)">Actually private.</span></h1>
-        <p style="font-size:19px;line-height:1.5;color:#55555F;max-width:490px;margin:0 0 32px">Chum writes your dating replies, plans your workouts, and remembers you &mdash; all sealed in an enclave no one, not even us, can read. No wallet. No crypto. Just an app.</p>
         <div style="display:flex;flex-wrap:wrap;gap:13px;align-items:center;margin-bottom:28px">
           <a href="#beta" style="display:inline-flex;align-items:center;gap:9px;background:var(--accent,#F5356E);color:#fff;font-weight:600;font-size:16.5px;padding:15px 27px;border-radius:999px;box-shadow:0 14px 32px -10px color-mix(in srgb,var(--accent,#F5356E) 62%,transparent);transition:transform .18s,box-shadow .2s" style-hover="transform:translateY(-2px);box-shadow:0 20px 44px -12px color-mix(in srgb,var(--accent,#F5356E) 72%,transparent)">Join the beta <span>&rarr;</span></a>
           <a href="#wingman" style="display:inline-flex;align-items:center;gap:8px;color:#0E0E12;font-weight:600;font-size:16.5px;padding:15px 22px;border-radius:999px;border:1px solid rgba(14,14,18,.16);background:rgba(255,255,255,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background .2s,border-color .2s" style-hover="background:#fff;border-color:rgba(14,14,18,.3)">See how it works</a>
@@ -136,13 +135,21 @@
 
   <section style="position:relative;z-index:1;border-top:1px solid rgba(14,14,18,.08);border-bottom:1px solid rgba(14,14,18,.08);background:#FBFBFC;margin-top:20px">
     <div style="max-width:1000px;margin:0 auto;padding:34px 26px;text-align:center">
-      <div style="font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:#9A9AA4;margin-bottom:16px">The playbook behind the biggest AI apps</div>
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:14px 28px;font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(1.4rem,2.8vw,2.15rem);letter-spacing:-.02em">
-        <span>Rizz <span style="color:var(--accent,#F5356E)">7.5M+</span></span>
-        <span style="color:rgba(14,14,18,.22);font-weight:500;font-size:.8em">&times;</span>
-        <span>Cal&nbsp;AI</span>
+      <div style="font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:#9A9AA4;margin-bottom:16px">The playbook behind today&rsquo;s biggest AI apps</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 16px;font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(1.4rem,2.8vw,2.15rem);letter-spacing:-.02em">
+        <span>Millions already pay AI to <span style="color:var(--accent,#F5356E)">date better</span> and <span style="color:var(--accent,#F5356E)">train smarter</span></span>
         <span style="font-size:15px;font-weight:500;color:#7A7A84;letter-spacing:0;font-family:'Hanken Grotesk',sans-serif">&mdash; rebuilt so your most private life stays yours.</span>
       </div>
+    </div>
+  </section>
+
+  <section id="demo" style="position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:88px 26px 40px">
+    <div style="text-align:center;margin-bottom:34px">
+      <div style="font-size:12.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent,#F5356E);margin-bottom:14px">See it in action</div>
+      <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:clamp(2rem,4vw,3rem);line-height:1.02;letter-spacing:-.03em;margin:0">Watch the demo.</h2>
+    </div>
+    <div style="position:relative;width:100%;padding-top:56.25%;border-radius:22px;overflow:hidden;background:#000;box-shadow:0 44px 100px -44px rgba(14,14,18,.5);border:1px solid rgba(14,14,18,.08)">
+      <iframe src="https://www.youtube.com/embed/ZurBWxPKReo" title="Chum demo" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;border:0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
     </div>
   </section>
 
@@ -319,18 +326,14 @@
         <div style="font-size:11.5px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.8);margin-bottom:20px">iOS beta &middot; TestFlight</div>
         <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:clamp(2.3rem,4.6vw,3.7rem);line-height:1;letter-spacing:-.03em;margin:0 0 16px">Be first on the beta.</h2>
         <p style="font-size:18px;line-height:1.5;color:rgba(255,255,255,.86);margin:0 0 34px">TestFlight invites drop soon. Leave your email and you&rsquo;ll be first in line.</p>
-        <sc-if value="{{ notJoined }}" hint-placeholder-val="{{ true }}">
-          <form onSubmit="{{ onJoin }}" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:480px;margin:0 auto">
-            <input type="email" required="required" placeholder="you@email.com" value="{{ email }}" onInput="{{ onEmail }}" style="flex:1;min-width:220px;background:#fff;color:#0E0E12;font-family:'Hanken Grotesk',sans-serif;font-size:16px;border:none;border-radius:999px;padding:15px 22px;outline:none;box-shadow:0 10px 30px -12px rgba(0,0,0,.3)">
-            <button type="submit" style="background:#0E0E12;color:#fff;font-family:'Hanken Grotesk',sans-serif;font-weight:600;font-size:16px;border:none;padding:15px 26px;border-radius:999px;cursor:pointer;transition:transform .16s,opacity .2s" style-hover="transform:translateY(-2px);opacity:.92">Join the beta</button>
-          </form>
-        </sc-if>
-        <sc-if value="{{ joined }}" hint-placeholder-val="{{ false }}">
-          <div style="display:inline-flex;align-items:center;gap:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:14px 24px;font-size:16.5px;font-weight:600">
-            <span style="width:24px;height:24px;border-radius:50%;background:#fff;color:var(--accent,#F5356E);display:flex;align-items:center;justify-content:center;font-size:14px">&#10003;</span>
-            You&rsquo;re on the list &mdash; watch your inbox.
-          </div>
-        </sc-if>
+        <form id="waitlist-form" action="https://formspree.io/f/FORMSPREE_ID" method="POST" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:480px;margin:0 auto">
+          <input type="email" name="email" required="required" placeholder="you@email.com" style="flex:1;min-width:220px;background:#fff;color:#0E0E12;font-family:'Hanken Grotesk',sans-serif;font-size:16px;border:none;border-radius:999px;padding:15px 22px;outline:none;box-shadow:0 10px 30px -12px rgba(0,0,0,.3)">
+          <button type="submit" style="background:#0E0E12;color:#fff;font-family:'Hanken Grotesk',sans-serif;font-weight:600;font-size:16px;border:none;padding:15px 26px;border-radius:999px;cursor:pointer;transition:transform .16s,opacity .2s" style-hover="transform:translateY(-2px);opacity:.92">Join the beta</button>
+        </form>
+        <div id="waitlist-success" style="display:none;align-items:center;gap:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:14px 24px;font-size:16.5px;font-weight:600">
+          <span style="width:24px;height:24px;border-radius:50%;background:#fff;color:var(--accent,#F5356E);display:flex;align-items:center;justify-content:center;font-size:14px">&#10003;</span>
+          You&rsquo;re on the list &mdash; watch your inbox.
+        </div>
         <div style="margin-top:20px;font-size:13px;color:rgba(255,255,255,.72)">Pay in &#8358; or $ &middot; Nothing stored, ever</div>
       </div>
     </div>
@@ -397,6 +400,33 @@ class Component extends DCLogic {
     };
   }
 }
+</script>
+<script>
+/* waitlist -> Formspree (AJAX, no reload; delegated so support.js DOM changes don't drop it) */
+(function(){
+  document.addEventListener('submit', function(e){
+    var f = e.target;
+    if(!f || f.id !== 'waitlist-form') return;
+    e.preventDefault();
+    var btn = f.querySelector('button');
+    if(f.action.indexOf('FORMSPREE_ID') !== -1){
+      /* Formspree id not set yet -> clean confirmation UX (does NOT capture until id is added) */
+      f.style.display='none';
+      var sp=document.getElementById('waitlist-success'); if(sp){ sp.style.display='inline-flex'; }
+      console.warn('Waitlist: set your Formspree form id to actually capture emails');
+      return;
+    }
+    if(btn){ btn.textContent = 'Joining…'; btn.disabled = true; }
+    fetch(f.action, { method:'POST', body:new FormData(f), headers:{ 'Accept':'application/json' } })
+      .then(function(r){
+        if(r.ok){
+          f.style.display='none';
+          var s=document.getElementById('waitlist-success'); if(s){ s.style.display='inline-flex'; }
+        } else if(btn){ btn.textContent='Try again'; btn.disabled=false; }
+      })
+      .catch(function(){ if(btn){ btn.textContent='Try again'; btn.disabled=false; } });
+  });
+})();
 </script>
 </body>
 </html>
