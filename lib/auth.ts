@@ -51,6 +51,16 @@ export async function saveSession(token: string, consumerId: string) {
   await set(K_CONSUMER, consumerId);
 }
 
+export async function clearSession() {
+  for (const k of [K_TOKEN, K_CONSUMER]) {
+    try {
+      await SecureStore.deleteItemAsync(k);
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export async function resetIdentity() {
   for (const k of [K_DEVICE, K_TOKEN, K_CONSUMER]) {
     try {

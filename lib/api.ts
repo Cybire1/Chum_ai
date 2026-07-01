@@ -6,7 +6,7 @@
 // end. The full grounding -> writer -> judge -> select pipeline lives server-side
 // in huru (/v1/rizz/*) — see BUILD_BRIEF.md §6/§7 — and is the next upgrade.
 
-import { getConsumerId, getDeviceId, getToken, saveSession } from "./auth";
+import { clearSession, getConsumerId, getDeviceId, getToken, saveSession } from "./auth";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { uid } from "./format";
@@ -194,6 +194,10 @@ async function consumerEmail(): Promise<string> {
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 type ChatResult = { content: string; huru: HuruMeta };
+type ChatJson = HuruErrorPayload & {
+  choices?: { message?: { content?: string } }[];
+  huru?: unknown;
+};
 
 function normalizeHuruMeta(input: unknown): HuruMeta {
   const h = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
@@ -223,7 +227,43 @@ function normalizeHuruMeta(input: unknown): HuruMeta {
 
 type HuruFeature = "wingman";
 
-async function huruHeaders(feature?: HuruFeature): Promise<Record<string, string>> {
+type HuruErrorPayload = {
+  error?: { code?: string; message?: string } | string;
+};
+
+function huruErrorCode(json: HuruErrorPayload, status: number): string {
+  return typeof json.error === "string"
+    ? json.error
+    : (json.error?.code ?? `http_${status}`);
+}
+
+function huruErrorMessage(json: HuruErrorPayload, fallback: string): string {
+  return typeof json.error === "object" && json.error?.message
+    ? json.error.message
+    : fallback;
+}
+
+function shouldRefreshConsumerSession(status: number, code: string): boolean {
+  return (
+    (status === 401 || status === 403 || status === 404) &&
+    ["invalid_consumer_token", "token_project_mismatch", "consumer_not_found"].includes(code)
+  );
+}
+
+function normalizeHeaders(headers?: HeadersInit): Record<string, string> {
+  if (!headers) return {};
+  if (typeof Headers !== "undefined" && headers instanceof Headers) {
+    return Object.fromEntries(headers.entries());
+  }
+  if (Array.isArray(headers)) return Object.fromEntries(headers);
+  return headers as Record<string, string>;
+}
+
+async function huruHeaders(
+  feature?: HuruFeature,
+  refreshSession = false,
+): Promise<Record<string, string>> {
+  if (refreshSession) await clearSession();
   await ensureAuth().catch(() => {});
   const token = await getToken();
   if (token) {
@@ -246,39 +286,75 @@ async function huruHeaders(feature?: HuruFeature): Promise<Record<string, string
   return headers;
 }
 
+async function fetchHuruJson<T extends HuruErrorPayload>(
+  path: string,
+  init: RequestInit = {},
+  feature?: HuruFeature,
+): Promise<{ res: Response; json: T }> {
+  const url = `${BASE}${path}`;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        ...init,
+        headers: {
+          ...(await huruHeaders(feature, attempt > 0)),
+          ...normalizeHeaders(init.headers),
+        },
+      });
+    } catch {
+      throw new ApiError(
+        0,
+        "network_unreachable",
+        `Can't reach Huru at ${requestTarget(url)}.`,
+      );
+    }
+
+    const json = (await res.json().catch(() => ({}))) as T;
+    if (!res.ok) {
+      const code = huruErrorCode(json, res.status);
+      if (attempt === 0 && shouldRefreshConsumerSession(res.status, code)) {
+        continue;
+      }
+    }
+    return { res, json };
+  }
+  throw new ApiError(401, "invalid_consumer_token", "Consumer token is invalid or expired.");
+}
+
 async function chat(messages: ChatMessage[], feature?: HuruFeature): Promise<ChatResult> {
   if (!DIRECT && !KEY) {
     throw new ApiError(0, "missing_huru_key", "EXPO_PUBLIC_HURU_KEY is not set.");
   }
   const url = DIRECT ? `${ZG_ENDPOINT}/chat/completions` : `${BASE}/v1/chat/completions`;
-  const headers: Record<string, string> = DIRECT
-    ? { "Content-Type": "application/json", Authorization: `Bearer ${ZG_TOKEN}` }
-    : await huruHeaders(feature);
+  const payload = { model: DIRECT ? ZG_MODEL : "huru/chat-1", messages };
   let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ model: DIRECT ? ZG_MODEL : "huru/chat-1", messages }),
-    });
-  } catch {
-    throw new ApiError(
-      0,
-      "network_unreachable",
-      `Can't reach ${DIRECT ? "the 0G provider" : "Huru"} at ${requestTarget(url)}.`,
-    );
+  let json: ChatJson;
+  if (DIRECT) {
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ZG_TOKEN}` },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      throw new ApiError(
+        0,
+        "network_unreachable",
+        `Can't reach the 0G provider at ${requestTarget(url)}.`,
+      );
+    }
+    json = (await res.json().catch(() => ({}))) as ChatJson;
+  } else {
+    ({ res, json } = await fetchHuruJson<ChatJson>(
+      "/v1/chat/completions",
+      { method: "POST", body: JSON.stringify(payload) },
+      feature,
+    ));
   }
-  const json = (await res.json().catch(() => ({}))) as {
-    choices?: { message?: { content?: string } }[];
-    huru?: unknown;
-    error?: { code?: string; message?: string } | string;
-  };
   if (!res.ok) {
-    const code =
-      typeof json.error === "string"
-        ? json.error
-        : (json.error?.code ?? `http_${res.status}`);
-    throw new ApiError(res.status, code, String(code));
+    const code = huruErrorCode(json, res.status);
+    throw new ApiError(res.status, code, huruErrorMessage(json, String(code)));
   }
   return {
     content: json.choices?.[0]?.message?.content ?? "",
@@ -310,35 +386,17 @@ export async function visionExtract(images: VisionInputImage[]): Promise<string>
     );
   }
   if (!DIRECT) {
-    const url = `${BASE}/v1/vision/ocr`;
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        method: "POST",
-        headers: await huruHeaders("wingman"),
-        body: JSON.stringify({ images }),
-      });
-    } catch {
-      throw new ApiError(
-        0,
-        "network_unreachable",
-        `Can't reach Huru at ${requestTarget(url)}.`,
-      );
-    }
-    const json = (await res.json().catch(() => ({}))) as {
+    const { res, json } = await fetchHuruJson<{
       transcript?: string;
       error?: { code?: string; message?: string } | string;
-    };
+    }>(
+      "/v1/vision/ocr",
+      { method: "POST", body: JSON.stringify({ images }) },
+      "wingman",
+    );
     if (!res.ok) {
-      const code =
-        typeof json.error === "string"
-          ? json.error
-          : (json.error?.code ?? `http_${res.status}`);
-      const message =
-        typeof json.error === "object" && json.error?.message
-          ? json.error.message
-          : String(code);
-      throw new ApiError(res.status, code, message);
+      const code = huruErrorCode(json, res.status);
+      throw new ApiError(res.status, code, huruErrorMessage(json, String(code)));
     }
     return json.transcript ?? "";
   }
@@ -392,17 +450,15 @@ async function updatePrivateMemory(
   if (MOCK || DIRECT || !BASE || !KEY) return;
   if (!(await isPrivateMemoryEnabled())) return;
 
-  const headers = await huruHeaders();
-  const res = await fetch(`${BASE}/v1/chum/memory`, {
+  const { res, json } = await fetchHuruJson<{
+    root_hash?: string;
+    huru?: { storage_root_hash?: string };
+    error?: { code?: string; message?: string } | string;
+  }>("/v1/chum/memory", {
     method: "POST",
-    headers,
     body: JSON.stringify({ event, ...payload }),
   });
   if (!res.ok) return;
-  const json = (await res.json().catch(() => ({}))) as {
-    root_hash?: string;
-    huru?: { storage_root_hash?: string };
-  };
   const rootHash = json.root_hash ?? json.huru?.storage_root_hash;
   if (rootHash) await rememberPrivateMemoryRoot(rootHash);
 }
@@ -662,21 +718,14 @@ function parsePlan(content: string): WorkoutPlan {
 
 export async function getMe(): Promise<Me> {
   if (!MOCK && !DIRECT && BASE && KEY) {
-    await ensureAuth().catch(() => {});
-    const token = await getToken();
-    if (token) {
-      const res = await fetch(`${BASE}/v1/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "X-Huru-Api-Key": KEY,
-        },
-      });
+    try {
+      const { res, json } = await fetchHuruJson<{
+        id?: string;
+        email?: string | null;
+        credits_balance?: number;
+        error?: { code?: string; message?: string } | string;
+      }>("/v1/auth/me");
       if (res.ok) {
-        const json = (await res.json().catch(() => ({}))) as {
-          id?: string;
-          email?: string | null;
-          credits_balance?: number;
-        };
         return {
           consumer_id: String(json.id ?? "con_device"),
           email: json.email ?? null,
@@ -684,6 +733,8 @@ export async function getMe(): Promise<Me> {
           subscription: { active: false, plan: null },
         };
       }
+    } catch {
+      // fall back to the local legacy profile below
     }
   }
   return {
@@ -710,28 +761,21 @@ export async function getPrivateMemoryRemote(): Promise<PrivateMemoryResponse> {
       huru: meta(),
     };
   }
-  const res = await fetch(`${BASE}/v1/chum/memory`, {
-    headers: await huruHeaders(),
-  });
-  const json = (await res.json().catch(() => ({}))) as PrivateMemoryResponse & {
+  const { res, json } = await fetchHuruJson<PrivateMemoryResponse & {
     huru?: unknown;
     error?: { code?: string; message?: string } | string;
-  };
+  }>("/v1/chum/memory");
   if (!res.ok) {
-    const code =
-      typeof json.error === "string"
-        ? json.error
-        : ((json.error as { code?: string } | undefined)?.code ?? `http_${res.status}`);
-    throw new ApiError(res.status, code, String(code));
+    const code = huruErrorCode(json, res.status);
+    throw new ApiError(res.status, code, huruErrorMessage(json, String(code)));
   }
   return { ...json, huru: normalizeHuruMeta(json.huru) };
 }
 
 export async function forgetPrivateMemoryRemote(): Promise<void> {
   if (MOCK || DIRECT || !BASE || !KEY) return;
-  await fetch(`${BASE}/v1/chum/memory`, {
+  await fetchHuruJson("/v1/chum/memory", {
     method: "DELETE",
-    headers: await huruHeaders(),
   }).catch(() => {});
 }
 
@@ -753,19 +797,13 @@ export async function getAgenticId(): Promise<AgenticIdRecord> {
       huru: meta(),
     };
   }
-  const res = await fetch(`${BASE}/v1/chum/agent`, {
-    headers: await huruHeaders(),
-  });
-  const json = (await res.json().catch(() => ({}))) as AgenticIdRecord & {
+  const { res, json } = await fetchHuruJson<AgenticIdRecord & {
     huru?: unknown;
     error?: { code?: string; message?: string } | string;
-  };
+  }>("/v1/chum/agent");
   if (!res.ok && res.status !== 409) {
-    const code =
-      typeof json.error === "string"
-        ? json.error
-        : ((json.error as { code?: string } | undefined)?.code ?? `http_${res.status}`);
-    throw new ApiError(res.status, code, String(code));
+    const code = huruErrorCode(json, res.status);
+    throw new ApiError(res.status, code, huruErrorMessage(json, String(code)));
   }
   return { ...json, huru: normalizeHuruMeta(json.huru) };
 }
@@ -791,24 +829,19 @@ export async function ownChum(input: {
       huru: meta(),
     };
   }
-  const res = await fetch(`${BASE}/v1/chum/agent`, {
+  const { res, json } = await fetchHuruJson<AgenticIdRecord & {
+    huru?: unknown;
+    error?: { code?: string; message?: string } | string;
+  }>("/v1/chum/agent", {
     method: "POST",
-    headers: await huruHeaders(),
     body: JSON.stringify({
       persona: input.persona,
       display_name: input.displayName,
     }),
   });
-  const json = (await res.json().catch(() => ({}))) as AgenticIdRecord & {
-    huru?: unknown;
-    error?: { code?: string; message?: string } | string;
-  };
   if (!res.ok) {
-    const code =
-      typeof json.error === "string"
-        ? json.error
-        : ((json.error as { code?: string } | undefined)?.code ?? `http_${res.status}`);
-    throw new ApiError(res.status, code, String(code));
+    const code = huruErrorCode(json, res.status);
+    throw new ApiError(res.status, code, huruErrorMessage(json, String(code)));
   }
   return { ...json, huru: normalizeHuruMeta(json.huru) };
 }
