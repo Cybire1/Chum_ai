@@ -9,6 +9,45 @@
 <meta property="og:title" content="Chum - the private AI you actually own">
 <meta property="og:description" content="Replies that land, a coach that knows you, memory that is yours - sealed on 0G. iOS beta soon.">
 <script src="./support.js"></script>
+<style>
+/* ===== mobile responsiveness (reformat-proof; overrides inline styles) ===== */
+@media (max-width: 860px){
+  html,body,[data-chum-root]{overflow-x:hidden !important}
+
+  /* nav: hide the 4 middle links by href (robust), keep logo + CTA */
+  [data-chum-root] header nav a[href="#wingman"],
+  [data-chum-root] header nav a[href="#coach"],
+  [data-chum-root] header nav a[href="#privacy"],
+  [data-chum-root] header nav a[href="#own"]{display:none !important}
+  [data-chum-root] header nav{gap:10px !important;padding:8px 8px 8px 16px !important}
+  [data-chum-root] header nav a[href="#beta"]{padding:9px 15px !important;font-size:13px !important}
+
+  /* every 2-col grid -> single column */
+  [data-chum-root] div[style*="grid-template-columns"]{grid-template-columns:1fr !important;gap:30px !important}
+
+  /* tighten sections, neutralize fixed heights that break stacking */
+  [data-chum-root] section{padding:52px 20px !important}
+  [data-chum-root] div[style*="height:604px"],[data-chum-root] div[style*="height: 604px"]{height:auto !important}
+  [data-chum-root] div[style*="min-height:604px"],[data-chum-root] div[style*="min-height: 604px"]{min-height:0 !important}
+  [data-chum-root] div[style*="min-height:520px"],[data-chum-root] div[style*="min-height: 520px"]{min-height:0 !important}
+  [data-chum-root] h1{font-size:2.5rem !important}
+  [data-chum-root] h2{font-size:2rem !important}
+
+  /* phone mockup frames: parents of the app screenshots -> un-rotate, center, stack */
+  [data-chum-root] div:has(> img[src*="coach.png"]),
+  [data-chum-root] div:has(> img[src*="reveal.png"]),
+  [data-chum-root] div:has(> img[src*="openers.png"]),
+  [data-chum-root] div:has(> img[src*="own.png"]){
+    position:relative !important;left:auto !important;top:auto !important;right:auto !important;bottom:auto !important;
+    transform:none !important;margin:0 auto 16px !important;width:min(250px,76vw) !important}
+
+  /* hide floating decorations (value fragments survive support.js reformatting) */
+  [data-chum-root] div[style*="blur(14px)"]{display:none !important}
+  [data-chum-root] div[style*="blur(12px)"]{display:none !important}
+  [data-chum-root] div[style*="blur(24px)"]{display:none !important}
+  [data-chum-root] div[style*="flex-direction: column"][style*="position: absolute"]{display:none !important}
+}
+</style>
 </head>
 <body>
 <x-dc>
