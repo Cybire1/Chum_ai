@@ -1,15 +1,16 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { Blob } from "./Blob";
 import { Button } from "./Button";
-import { colors, radius, space, type } from "../lib/theme";
+import { colors, space, type } from "../lib/theme";
 
 // Full-screen lock overlay. Rendered by the root layout when app-lock is on.
 export function AppLock({ onUnlock }: { onUnlock: () => void }) {
   return (
     <View style={styles.wrap}>
-      <View style={styles.badge}>
-        <Text style={styles.glyph}>􀎡</Text>
+      <View style={styles.hero}>
+        <Blob face="privacy" hue="lilac" size={120} />
       </View>
       <Text style={styles.title}>Chum is locked</Text>
       <Text style={styles.sub}>Your conversations stay on your device.</Text>
@@ -26,18 +27,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: space.xl,
   },
-  badge: {
-    width: 72,
-    height: 72,
-    borderRadius: radius.lg,
-    backgroundColor: colors.emberSoft,
-    borderWidth: 1,
-    borderColor: colors.emberLine,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: space.lg,
-  },
-  glyph: { fontSize: 30, color: colors.ember },
-  title: { ...type.title, color: colors.text },
-  sub: { ...type.body, color: colors.muted, marginTop: space.xs },
+  hero: { marginBottom: space.lg },
+  title: { ...type.title, color: colors.text, textAlign: "center" },
+  sub: { ...type.body, color: colors.muted, marginTop: space.xs, textAlign: "center" },
 });

@@ -32,11 +32,13 @@ const TIER_ASSIGNMENTS: Array<{ match: string; tier: ModelTier }> = [
 	{ match: "huru/chat-economy", tier: "economy" },
 	{ match: "huru/chat-pro", tier: "standard" },
 	{ match: "huru/chat-standard", tier: "standard" },
+	{ match: "huru/vision-ocr", tier: "standard" },
 	{ match: "huru/chat-max", tier: "premium" },
 	{ match: "huru/chat-premium", tier: "premium" },
 
 	// ── Economy: ~1x baseline cost ──
 	{ match: "deepseek-chat", tier: "economy" },
+	{ match: "deepseek-v4-flash", tier: "economy" },
 	{ match: "deepseek-v3", tier: "economy" },
 	{ match: "deepseek-r1", tier: "economy" },
 	{ match: "llama-3.1-8b", tier: "economy" },
@@ -47,6 +49,7 @@ const TIER_ASSIGNMENTS: Array<{ match: string; tier: ModelTier }> = [
 	{ match: "llama-3.1-70b", tier: "standard" },
 	{ match: "llama-3.3-70b", tier: "standard" },
 	{ match: "qwen-2.5-72b", tier: "standard" },
+	{ match: "qwen3-vl", tier: "standard" },
 	{ match: "mistral-large", tier: "standard" },
 	{ match: "phi-4", tier: "standard" },
 

@@ -2,7 +2,6 @@ import { runtimeConfig, creditPacks } from "@/lib/huru/config";
 import {
   TerminalIcon,
   KeyIcon,
-  ShieldTickIcon,
 } from "@/components/huru-icons";
 import { DocsSidebar } from "./docs-sidebar";
 

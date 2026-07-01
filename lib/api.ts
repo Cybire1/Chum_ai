@@ -6,21 +6,28 @@
 // end. The full grounding -> writer -> judge -> select pipeline lives server-side
 // in huru (/v1/rizz/*) — see BUILD_BRIEF.md §6/§7 — and is the next upgrade.
 
-import { getDeviceId } from "./auth";
+import { getConsumerId, getDeviceId, getToken, saveSession } from "./auth";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 import { uid } from "./format";
+import { isPrivateMemoryEnabled, rememberPrivateMemoryRoot } from "./memory";
 import type {
   DecodeResponse,
   DecodeVerdict,
+  AgenticIdRecord,
+  HuruMeta,
   Me,
   Opener,
   OpenerResponse,
+  Persona,
+  PrivateMemoryResponse,
   Reply,
   RizzReplyRequest,
   RizzReplyResponse,
   Turn,
 } from "./types";
 
-const BASE = (process.env.EXPO_PUBLIC_HURU_BASE ?? "").trim();
+const RAW_BASE = (process.env.EXPO_PUBLIC_HURU_BASE ?? "").trim();
 const KEY = process.env.EXPO_PUBLIC_HURU_KEY ?? "";
 
 // Direct 0G compute (no relay): call a 0G provider's OpenAI-compatible endpoint
@@ -29,12 +36,86 @@ const KEY = process.env.EXPO_PUBLIC_HURU_KEY ?? "";
 const ZG_ENDPOINT = (process.env.EXPO_PUBLIC_0G_ENDPOINT ?? "").trim();
 const ZG_TOKEN = (process.env.EXPO_PUBLIC_0G_TOKEN ?? "").trim();
 const ZG_MODEL = (process.env.EXPO_PUBLIC_0G_MODEL ?? "deepseek-v4-flash").trim();
+const ZG_VISION_MODEL = (process.env.EXPO_PUBLIC_0G_VISION_MODEL ?? "").trim();
 const DIRECT = ZG_ENDPOINT !== "" && ZG_TOKEN !== "";
 
+type ExpoConstantsShape = {
+  expoConfig?: { hostUri?: string | null } | null;
+  manifest?: { debuggerHost?: string | null; hostUri?: string | null } | null;
+  manifest2?: {
+    extra?: {
+      expoGo?: { debuggerHost?: string | null } | null;
+      expoClient?: { hostUri?: string | null } | null;
+    } | null;
+  } | null;
+};
+
+function trimSlash(value: string): string {
+  return value.replace(/\/$/, "");
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function parseHost(value?: string | null): string | null {
+  if (!value) return null;
+  const withoutProtocol = value.replace(/^[a-z]+:\/\//i, "");
+  const hostPart = withoutProtocol.split("/")[0]?.split("?")[0];
+  if (!hostPart) return null;
+  try {
+    const parsed = new URL(`http://${hostPart}`);
+    return parsed.hostname && !isLoopbackHost(parsed.hostname) ? parsed.hostname : null;
+  } catch {
+    return null;
+  }
+}
+
+function expoDevHost(): string | null {
+  const constants = Constants as unknown as ExpoConstantsShape;
+  return (
+    parseHost(constants.expoConfig?.hostUri) ??
+    parseHost(constants.manifest?.debuggerHost) ??
+    parseHost(constants.manifest?.hostUri) ??
+    parseHost(constants.manifest2?.extra?.expoGo?.debuggerHost) ??
+    parseHost(constants.manifest2?.extra?.expoClient?.hostUri)
+  );
+}
+
+function resolveRelayBase(rawBase: string): string {
+  const raw = trimSlash(rawBase);
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    if (!isLoopbackHost(url.hostname) || Platform.OS === "web") return raw;
+
+    const devHost = expoDevHost();
+    if (devHost) {
+      url.hostname = devHost;
+      return trimSlash(url.toString());
+    }
+
+    if (Platform.OS === "android") {
+      url.hostname = "10.0.2.2";
+      return trimSlash(url.toString());
+    }
+
+    return raw;
+  } catch {
+    return raw;
+  }
+}
+
+const BASE = resolveRelayBase(RAW_BASE);
 const MOCK = process.env.EXPO_PUBLIC_MOCK === "1" || (!DIRECT && BASE === "");
 
 export const isMock = MOCK;
 export const isDirect = DIRECT;
+export const huruBaseUrl = BASE;
+
+// Screenshot reading is available through Huru relay by default. Direct 0G mode
+// still requires an explicit vision-capable provider model.
+export const visionAvailable = DIRECT ? ZG_VISION_MODEL !== "" : Boolean(BASE && KEY && !MOCK);
 
 class ApiError extends Error {
   constructor(
@@ -47,9 +128,62 @@ class ApiError extends Error {
 }
 export { ApiError };
 
-// ensureAuth is a no-op in the legacy (sk_ + email) path; kept for callers.
+function requestTarget(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return "the configured AI endpoint";
+  }
+}
+
+export function describeApiError(
+  error: unknown,
+  fallback = "The AI is unavailable right now. Try again.",
+): string {
+  if (error instanceof ApiError) {
+    if (error.code === "network_unreachable") {
+      return `${error.message} If this is a phone build, keep the phone on the same Wi-Fi as this Mac and keep the Huru relay running.`;
+    }
+    if (error.code === "missing_huru_key") {
+      return "The app is missing EXPO_PUBLIC_HURU_KEY. Add it to the Expo .env and restart Expo.";
+    }
+    if (error.code === "insufficient_credits") {
+      return "This project needs credits before the AI can answer.";
+    }
+    return error.message || fallback;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
 export async function ensureAuth(): Promise<void> {
-  return;
+  if (MOCK || DIRECT || !BASE || !KEY) return;
+  const existing = await getToken();
+  const existingConsumer = await getConsumerId();
+  if (existing && existingConsumer) return;
+
+  const res = await fetch(`${BASE}/v1/consumers/device`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Huru-Api-Key": KEY,
+    },
+    body: JSON.stringify({ device_id: await getDeviceId() }),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    consumer_id?: string;
+    token?: string;
+    error?: { code?: string; message?: string } | string;
+  };
+  if (!res.ok || !json.token || !json.consumer_id) {
+    const code =
+      typeof json.error === "string"
+        ? json.error
+        : (json.error?.code ?? `http_${res.status}`);
+    throw new ApiError(res.status, code, String(code));
+  }
+  await saveSession(json.token, json.consumer_id);
 }
 
 async function consumerEmail(): Promise<string> {
@@ -59,20 +193,184 @@ async function consumerEmail(): Promise<string> {
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-async function chat(messages: ChatMessage[]): Promise<string> {
+type ChatResult = { content: string; huru: HuruMeta };
+
+function normalizeHuruMeta(input: unknown): HuruMeta {
+  const h = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  return {
+    request_id: String(h.request_id ?? uid("req")),
+    credits_used: Number(h.credits_used ?? 0) || 0,
+    verified: Boolean(h.verified),
+    verification_mode:
+      h.verification_mode === undefined ? undefined : String(h.verification_mode),
+    provider: h.provider === undefined ? undefined : String(h.provider),
+    cached: h.cached === undefined ? undefined : Boolean(h.cached),
+    idempotent_replay:
+      h.idempotent_replay === undefined ? undefined : Boolean(h.idempotent_replay),
+    storage_root_hash:
+      h.storage_root_hash === undefined ? undefined : String(h.storage_root_hash),
+    storage_tx_hash:
+      h.storage_tx_hash === undefined ? undefined : String(h.storage_tx_hash),
+    kv_tx_hash: h.kv_tx_hash === undefined ? undefined : String(h.kv_tx_hash),
+    privacy:
+      h.privacy === undefined
+        ? Boolean(h.verified)
+          ? "enclave"
+          : "private"
+        : String(h.privacy),
+  };
+}
+
+type HuruFeature = "wingman";
+
+async function huruHeaders(feature?: HuruFeature): Promise<Record<string, string>> {
+  await ensureAuth().catch(() => {});
+  const token = await getToken();
+  if (token) {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      "X-Huru-Api-Key": KEY,
+      "Cache-Control": "no-store",
+    };
+    if (feature) headers["X-Huru-Feature"] = feature;
+    return headers;
+  }
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${KEY}`,
+    "X-Consumer-Email": await consumerEmail(),
+    "Cache-Control": "no-store",
+  };
+  if (feature) headers["X-Huru-Feature"] = feature;
+  return headers;
+}
+
+async function chat(messages: ChatMessage[], feature?: HuruFeature): Promise<ChatResult> {
+  if (!DIRECT && !KEY) {
+    throw new ApiError(0, "missing_huru_key", "EXPO_PUBLIC_HURU_KEY is not set.");
+  }
   const url = DIRECT ? `${ZG_ENDPOINT}/chat/completions` : `${BASE}/v1/chat/completions`;
   const headers: Record<string, string> = DIRECT
     ? { "Content-Type": "application/json", Authorization: `Bearer ${ZG_TOKEN}` }
-    : {
+    : await huruHeaders(feature);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ model: DIRECT ? ZG_MODEL : "huru/chat-1", messages }),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "network_unreachable",
+      `Can't reach ${DIRECT ? "the 0G provider" : "Huru"} at ${requestTarget(url)}.`,
+    );
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    choices?: { message?: { content?: string } }[];
+    huru?: unknown;
+    error?: { code?: string; message?: string } | string;
+  };
+  if (!res.ok) {
+    const code =
+      typeof json.error === "string"
+        ? json.error
+        : (json.error?.code ?? `http_${res.status}`);
+    throw new ApiError(res.status, code, String(code));
+  }
+  return {
+    content: json.choices?.[0]?.message?.content ?? "",
+    huru: DIRECT ? { ...meta(false), provider: "direct-0g" } : normalizeHuruMeta(json.huru),
+  };
+}
+
+// ---- Vision (direct 0G) -----------------------------------------------------
+// Transcribe dating-chat screenshots into a ME/THEM transcript. The base64 image
+// bytes are sent to the 0G provider's sealed enclave for OCR and never stored.
+
+type VisionTextPart = { type: "text"; text: string };
+type VisionImagePart = { type: "image_url"; image_url: { url: string } };
+type VisionContentPart = VisionTextPart | VisionImagePart;
+export type VisionInputImage = { data: string; mime_type?: string };
+
+const VISION_PROMPT =
+  "Transcribe this dating-chat screenshot. Output one message per line. " +
+  'Prefix each line with "THEM:" for the other person (usually grey/left bubbles) ' +
+  'or "ME:" for the user (usually coloured/right bubbles). ' +
+  "Do not include names, timestamps, reactions, or any commentary — only the message text.";
+
+export async function visionExtract(images: VisionInputImage[]): Promise<string> {
+  if (!visionAvailable) {
+    throw new ApiError(
+      0,
+      "ocr_not_available",
+      "Screenshot reading is not configured.",
+    );
+  }
+  if (!DIRECT) {
+    const url = `${BASE}/v1/vision/ocr`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: await huruHeaders("wingman"),
+        body: JSON.stringify({ images }),
+      });
+    } catch {
+      throw new ApiError(
+        0,
+        "network_unreachable",
+        `Can't reach Huru at ${requestTarget(url)}.`,
+      );
+    }
+    const json = (await res.json().catch(() => ({}))) as {
+      transcript?: string;
+      error?: { code?: string; message?: string } | string;
+    };
+    if (!res.ok) {
+      const code =
+        typeof json.error === "string"
+          ? json.error
+          : (json.error?.code ?? `http_${res.status}`);
+      const message =
+        typeof json.error === "object" && json.error?.message
+          ? json.error.message
+          : String(code);
+      throw new ApiError(res.status, code, message);
+    }
+    return json.transcript ?? "";
+  }
+
+  const content: VisionContentPart[] = [{ type: "text", text: VISION_PROMPT }];
+  for (const image of images) {
+    content.push({
+      type: "image_url",
+      image_url: { url: `data:${image.mime_type ?? "image/jpeg"};base64,${image.data}` },
+    });
+  }
+  const url = `${ZG_ENDPOINT}/chat/completions`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${KEY}`,
-        "X-Consumer-Email": await consumerEmail(),
-      };
-  const res = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ model: DIRECT ? ZG_MODEL : "huru/chat-1", messages }),
-  });
+        Authorization: `Bearer ${ZG_TOKEN}`,
+      },
+      body: JSON.stringify({
+        model: ZG_VISION_MODEL,
+        messages: [{ role: "user", content }],
+      }),
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "network_unreachable",
+      `Can't reach the 0G provider at ${requestTarget(url)}.`,
+    );
+  }
   const json = (await res.json().catch(() => ({}))) as {
     choices?: { message?: { content?: string } }[];
     error?: { code?: string; message?: string } | string;
@@ -85,6 +383,28 @@ async function chat(messages: ChatMessage[]): Promise<string> {
     throw new ApiError(res.status, code, String(code));
   }
   return json.choices?.[0]?.message?.content ?? "";
+}
+
+async function updatePrivateMemory(
+  event: "reply" | "decode" | "opener" | "plan",
+  payload: Record<string, unknown>,
+): Promise<void> {
+  if (MOCK || DIRECT || !BASE || !KEY) return;
+  if (!(await isPrivateMemoryEnabled())) return;
+
+  const headers = await huruHeaders();
+  const res = await fetch(`${BASE}/v1/chum/memory`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ event, ...payload }),
+  });
+  if (!res.ok) return;
+  const json = (await res.json().catch(() => ({}))) as {
+    root_hash?: string;
+    huru?: { storage_root_hash?: string };
+  };
+  const rootHash = json.root_hash ?? json.huru?.storage_root_hash;
+  if (rootHash) await rememberPrivateMemoryRoot(rootHash);
 }
 
 function stripFences(s: string): string {
@@ -145,10 +465,12 @@ function parseReplies(content: string, n: number): Reply[] {
     .map((text) => ({ id: uid("r"), text, angle: "reply", device: "" }));
 }
 
-const meta = (verified = false) => ({
+const meta = (verified = false): HuruMeta => ({
   request_id: uid("req"),
   credits_used: 0,
   verified,
+  verification_mode: verified ? "tee" : "unknown",
+  provider: verified ? "0g-compute" : "mock",
   privacy: "enclave" as const,
 });
 
@@ -159,14 +481,19 @@ export async function rizzReply(
 ): Promise<RizzReplyResponse> {
   if (MOCK) return mockReply(req);
   const n = req.regenerate ? 1 : 3;
-  const content = await chat([
+  const result = await chat([
     { role: "system", content: REPLY_SYSTEM(n) },
     { role: "user", content: renderConvo(req) },
-  ]);
-  const replies = parseReplies(content, n);
+  ], "wingman");
+  const replies = parseReplies(result.content, n);
   if (!replies.length)
     throw new ApiError(502, "empty_reply", "No reply produced.");
-  return { replies, huru: meta() };
+  updatePrivateMemory("reply", {
+    conversation: req.conversation,
+    context_note: req.context_note,
+    answer: replies,
+  }).catch(() => {});
+  return { replies, huru: result.huru };
 }
 
 export async function rizzDecode(
@@ -177,7 +504,7 @@ export async function rizzDecode(
   const convo = conversation
     .map((t) => `${t.speaker === "me" ? "ME" : "THEM"}: ${t.text}`)
     .join("\n");
-  const content = await chat([
+  const result = await chat([
     {
       role: "system",
       content:
@@ -186,29 +513,41 @@ export async function rizzDecode(
         `"confidence":0-100,"evidence":["short quote-based reason"],"suggested_move":"one concrete next move"}.`,
     },
     { role: "user", content: contextNote ? `${convo}\nContext: ${contextNote}` : convo },
-  ]);
+  ], "wingman");
   try {
-    const o = JSON.parse(stripFences(content)) as Partial<DecodeResponse>;
+    const o = JSON.parse(stripFences(result.content)) as Partial<DecodeResponse>;
     const verdict = (
       ["interested", "testing", "polite", "losing_interest"] as DecodeVerdict[]
     ).includes(o.verdict as DecodeVerdict)
       ? (o.verdict as DecodeVerdict)
       : "testing";
-    return {
+    const response: DecodeResponse = {
       verdict,
       confidence: Math.max(0, Math.min(100, Number(o.confidence ?? 60))),
       evidence: Array.isArray(o.evidence) ? o.evidence.map(String).slice(0, 3) : [],
       suggested_move: String(o.suggested_move ?? "Keep the energy and suggest a plan."),
-      huru: meta(),
+      huru: result.huru,
     };
+    updatePrivateMemory("decode", {
+      conversation,
+      context_note: contextNote,
+      answer: response,
+    }).catch(() => {});
+    return response;
   } catch {
-    return {
+    const response: DecodeResponse = {
       verdict: "testing",
       confidence: 60,
-      evidence: [content.slice(0, 120)],
+      evidence: [result.content.slice(0, 120)],
       suggested_move: "Match their energy and suggest a low-stakes plan.",
-      huru: meta(),
+      huru: result.huru,
     };
+    updatePrivateMemory("decode", {
+      conversation,
+      context_note: contextNote,
+      answer: response,
+    }).catch(() => {});
+    return response;
   }
 }
 
@@ -217,7 +556,7 @@ export async function rizzOpener(
   vibe: RizzReplyRequest["vibe"],
 ): Promise<OpenerResponse> {
   if (MOCK) return mockOpener(bioText);
-  const content = await chat([
+  const result = await chat([
     {
       role: "system",
       content:
@@ -226,9 +565,9 @@ export async function rizzOpener(
         `Output STRICT JSON only: {"openers":[{"text":"...","anchor":"the bio detail"}]}`,
     },
     { role: "user", content: bioText },
-  ]);
+  ], "wingman");
   try {
-    const o = JSON.parse(stripFences(content)) as { openers?: Partial<Opener>[] };
+    const o = JSON.parse(stripFences(result.content)) as { openers?: Partial<Opener>[] };
     const openers = (o.openers ?? [])
       .map((x) => ({
         id: uid("o"),
@@ -237,26 +576,241 @@ export async function rizzOpener(
       }))
       .filter((x) => x.text.length > 0)
       .slice(0, 3);
-    if (openers.length) return { openers, huru: meta() };
+    if (openers.length) {
+      updatePrivateMemory("opener", {
+        answer: { bio: bioText, openers },
+      }).catch(() => {});
+      return { openers, huru: result.huru };
+    }
   } catch {
     // fall through
   }
-  const openers = stripFences(content)
+  const openers = stripFences(result.content)
     .split("\n")
     .map((s) => s.replace(/^[\d.)\-\s"]+/, "").trim())
     .filter(Boolean)
     .slice(0, 3)
     .map((text) => ({ id: uid("o"), text, anchor: "their bio" }));
-  return { openers, huru: meta() };
+  updatePrivateMemory("opener", {
+    answer: { bio: bioText, openers },
+  }).catch(() => {});
+  return { openers, huru: result.huru };
+}
+
+// ---- Fitness / Coach (0G) ---------------------------------------------------
+
+export type PlanExercise = { name: string; sets: number; reps: string; note?: string };
+export type PlanDay = { day: string; focus: string; exercises: PlanExercise[] };
+export type WorkoutPlan = { title: string; summary: string; days: PlanDay[]; huru?: HuruMeta };
+export type PlanRequest = { goal: string; equipment: string; level: string; days: number };
+
+const PLAN_SYSTEM =
+  "You are an expert strength & conditioning coach. Design a concise, safe weekly workout plan. " +
+  "Output STRICT JSON only, no markdown, no commentary: " +
+  '{"title":"...","summary":"one motivating sentence","days":[{"day":"Day 1","focus":"e.g. Push","exercises":[{"name":"Bench Press","sets":4,"reps":"8-10","note":"optional short cue"}]}]}. ' +
+  "Use common exercise names. 4-6 exercises per day. Respect the user's equipment and experience. The number of days must match the request.";
+
+export async function generateWorkoutPlan(req: PlanRequest): Promise<WorkoutPlan> {
+  if (MOCK) return mockPlan(req);
+  const result = await chat([
+    { role: "system", content: PLAN_SYSTEM },
+    {
+      role: "user",
+      content: `Goal: ${req.goal}. Equipment available: ${req.equipment}. Experience level: ${req.level}. Days per week: ${req.days}.`,
+    },
+  ]);
+  const plan = parsePlan(result.content);
+  if (!plan.days.length) throw new ApiError(502, "empty_plan", "No plan produced.");
+  updatePrivateMemory("plan", {
+    answer: {
+      goal: req.goal,
+      equipment: req.equipment,
+      level: req.level,
+      days: req.days,
+      title: plan.title,
+    },
+  }).catch(() => {});
+  return { ...plan, huru: result.huru };
+}
+
+function parsePlan(content: string): WorkoutPlan {
+  try {
+    const o = JSON.parse(stripFences(content)) as Partial<WorkoutPlan>;
+    const days: PlanDay[] = Array.isArray(o.days)
+      ? o.days
+          .map((d) => ({
+            day: String(d?.day ?? "Day"),
+            focus: String(d?.focus ?? ""),
+            exercises: Array.isArray(d?.exercises)
+              ? d.exercises
+                  .map((e) => ({
+                    name: String(e?.name ?? "").trim(),
+                    sets: Number(e?.sets ?? 3) || 3,
+                    reps: String(e?.reps ?? "10"),
+                    note: e?.note ? String(e.note) : undefined,
+                  }))
+                  .filter((e) => e.name.length > 0)
+              : [],
+          }))
+          .filter((d) => d.exercises.length > 0)
+      : [];
+    return { title: String(o.title ?? "Your plan"), summary: String(o.summary ?? ""), days };
+  } catch {
+    return { title: "Your plan", summary: "", days: [] };
+  }
 }
 
 export async function getMe(): Promise<Me> {
+  if (!MOCK && !DIRECT && BASE && KEY) {
+    await ensureAuth().catch(() => {});
+    const token = await getToken();
+    if (token) {
+      const res = await fetch(`${BASE}/v1/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-Huru-Api-Key": KEY,
+        },
+      });
+      if (res.ok) {
+        const json = (await res.json().catch(() => ({}))) as {
+          id?: string;
+          email?: string | null;
+          credits_balance?: number;
+        };
+        return {
+          consumer_id: String(json.id ?? "con_device"),
+          email: json.email ?? null,
+          credits_balance: Number(json.credits_balance ?? 0) || 0,
+          subscription: { active: false, plan: null },
+        };
+      }
+    }
+  }
   return {
     consumer_id: "con_legacy",
     email: null,
     credits_balance: 0,
     subscription: { active: false, plan: null },
   };
+}
+
+export async function getPrivateMemoryRemote(): Promise<PrivateMemoryResponse> {
+  if (MOCK || DIRECT || !BASE || !KEY) {
+    return {
+      memory: {
+        summary: "Chum is ready to remember your voice once the live relay is connected.",
+        voice: ["smooth, specific, low-pressure"],
+        preferences: ["short replies", "SFW flirting"],
+        boundaries: ["no pushy escalation"],
+        facts: [],
+        updated_at: new Date().toISOString(),
+        source_event: "mock",
+      },
+      root_hash: null,
+      huru: meta(),
+    };
+  }
+  const res = await fetch(`${BASE}/v1/chum/memory`, {
+    headers: await huruHeaders(),
+  });
+  const json = (await res.json().catch(() => ({}))) as PrivateMemoryResponse & {
+    huru?: unknown;
+    error?: { code?: string; message?: string } | string;
+  };
+  if (!res.ok) {
+    const code =
+      typeof json.error === "string"
+        ? json.error
+        : ((json.error as { code?: string } | undefined)?.code ?? `http_${res.status}`);
+    throw new ApiError(res.status, code, String(code));
+  }
+  return { ...json, huru: normalizeHuruMeta(json.huru) };
+}
+
+export async function forgetPrivateMemoryRemote(): Promise<void> {
+  if (MOCK || DIRECT || !BASE || !KEY) return;
+  await fetch(`${BASE}/v1/chum/memory`, {
+    method: "DELETE",
+    headers: await huruHeaders(),
+  }).catch(() => {});
+}
+
+export async function getAgenticId(): Promise<AgenticIdRecord> {
+  if (MOCK || DIRECT || !BASE || !KEY) {
+    return {
+      object: "chum.agentic_id",
+      status: "setup_required",
+      token_id: null,
+      owner_address: null,
+      contract_address: null,
+      metadata_root_hash: null,
+      memory_root_hash: null,
+      data_hash: null,
+      tx_hash: null,
+      updated_at: null,
+      explorer_url: null,
+      setup_reason: "Connect the Huru relay to mint on 0G.",
+      huru: meta(),
+    };
+  }
+  const res = await fetch(`${BASE}/v1/chum/agent`, {
+    headers: await huruHeaders(),
+  });
+  const json = (await res.json().catch(() => ({}))) as AgenticIdRecord & {
+    huru?: unknown;
+    error?: { code?: string; message?: string } | string;
+  };
+  if (!res.ok && res.status !== 409) {
+    const code =
+      typeof json.error === "string"
+        ? json.error
+        : ((json.error as { code?: string } | undefined)?.code ?? `http_${res.status}`);
+    throw new ApiError(res.status, code, String(code));
+  }
+  return { ...json, huru: normalizeHuruMeta(json.huru) };
+}
+
+export async function ownChum(input: {
+  persona?: Exclude<Persona, null>;
+  displayName?: string;
+}): Promise<AgenticIdRecord> {
+  if (MOCK || DIRECT || !BASE || !KEY) {
+    return {
+      object: "chum.agentic_id",
+      status: "setup_required",
+      token_id: null,
+      owner_address: null,
+      contract_address: null,
+      metadata_root_hash: null,
+      memory_root_hash: null,
+      data_hash: null,
+      tx_hash: null,
+      updated_at: null,
+      explorer_url: null,
+      setup_reason: "Connect Huru with HURU_AGENT_NFT_ADDRESS to mint.",
+      huru: meta(),
+    };
+  }
+  const res = await fetch(`${BASE}/v1/chum/agent`, {
+    method: "POST",
+    headers: await huruHeaders(),
+    body: JSON.stringify({
+      persona: input.persona,
+      display_name: input.displayName,
+    }),
+  });
+  const json = (await res.json().catch(() => ({}))) as AgenticIdRecord & {
+    huru?: unknown;
+    error?: { code?: string; message?: string } | string;
+  };
+  if (!res.ok) {
+    const code =
+      typeof json.error === "string"
+        ? json.error
+        : ((json.error as { code?: string } | undefined)?.code ?? `http_${res.status}`);
+    throw new ApiError(res.status, code, String(code));
+  }
+  return { ...json, huru: normalizeHuruMeta(json.huru) };
 }
 
 // ---- Mock backend (only when MOCK) -----------------------------------------
@@ -334,5 +888,41 @@ function mockOpener(bio: string): Promise<OpenerResponse> {
       { id: uid("o"), text: `${anchor} is either a green flag or a trap. explain yourself.`, anchor },
     ],
     huru: meta(),
+  });
+}
+
+function mockPlan(req: PlanRequest): Promise<WorkoutPlan> {
+  const mk = (day: string, focus: string, exercises: PlanExercise[]): PlanDay => ({ day, focus, exercises });
+  const all: PlanDay[] = [
+    mk("Day 1", "Push", [
+      { name: "Push-Up", sets: 4, reps: "12-15", note: "slow on the way down" },
+      { name: "Dumbbell Bench Press", sets: 4, reps: "8-10" },
+      { name: "Overhead Press", sets: 3, reps: "8-10" },
+      { name: "Tricep Dips", sets: 3, reps: "12" },
+    ]),
+    mk("Day 2", "Pull", [
+      { name: "Pull-Up", sets: 4, reps: "6-10" },
+      { name: "Bent-Over Row", sets: 4, reps: "8-10" },
+      { name: "Face Pull", sets: 3, reps: "15" },
+      { name: "Bicep Curl", sets: 3, reps: "12" },
+    ]),
+    mk("Day 3", "Legs", [
+      { name: "Goblet Squat", sets: 4, reps: "10-12" },
+      { name: "Romanian Deadlift", sets: 4, reps: "8-10" },
+      { name: "Walking Lunge", sets: 3, reps: "12 each" },
+      { name: "Calf Raise", sets: 3, reps: "15" },
+    ]),
+    mk("Day 4", "Full body", [
+      { name: "Kettlebell Swing", sets: 4, reps: "15" },
+      { name: "Front Squat", sets: 4, reps: "8" },
+      { name: "Incline Push-Up", sets: 3, reps: "15" },
+      { name: "Plank", sets: 3, reps: "45s" },
+    ]),
+  ];
+  const n = Math.max(1, Math.min(req.days || 3, all.length));
+  return Promise.resolve({
+    title: `${req.goal} plan`,
+    summary: `A ${req.days}-day ${req.level.toLowerCase()} split built around ${req.equipment.toLowerCase()}.`,
+    days: all.slice(0, n),
   });
 }

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import type { DecodeResponse, Persona, Reply, Turn, Vibe } from "./types";
+import type { DecodeResponse, HuruMeta, Persona, Reply, Turn, Vibe } from "./types";
 
 // In-flight session shared across the capture -> transcript -> reveal flow.
 // Tiny external store (no extra deps). Local-only; nothing here is persisted.
@@ -14,6 +14,7 @@ export type Session = {
   persona: Persona;
   replies: Reply[];
   decode: DecodeResponse | null;
+  lastReceipt: HuruMeta | null;
 };
 
 const initial: Session = {
@@ -25,6 +26,7 @@ const initial: Session = {
   persona: null,
   replies: [],
   decode: null,
+  lastReceipt: null,
 };
 
 let state: Session = { ...initial };

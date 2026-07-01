@@ -11,7 +11,7 @@ import { isAuthError, resolveRequestAuth } from "@/lib/huru/resolve-auth";
 import {
 	defaultStreamId,
 	estimateKvReadCredits,
-	kvGet,
+	kvGetResilient,
 } from "@/lib/huru/storage";
 import {
 	failRequest,
@@ -98,10 +98,18 @@ export async function GET(request: NextRequest) {
 		settleConsumerCredits(consumer, requestId, actual, estimatedCredits);
 
 	try {
-		const value = await kvGet(streamId, key);
+		const pointer = await kvGetResilient(streamId, key);
+		const value = pointer.value;
 
 		if (value === null) {
 			await doSettle(0);
+			const responseBody = {
+				object: "storage.kv.get" as const,
+				stream_id: streamId,
+				key,
+				value: null,
+				kv_source: pointer.source,
+			};
 			await finalizeRequest(
 				requestId,
 				{
@@ -110,25 +118,23 @@ export async function GET(request: NextRequest) {
 					totalTokens: 0,
 					creditsUsed: 0,
 				},
-				{
-					verified: true,
-					verificationMode: "tee",
-					provider: "0g-storage",
-				},
-				{ object: "storage.kv.get", stream_id: streamId, key, value: null },
-			);
-
-			return NextResponse.json(
-				{
-					object: "storage.kv.get",
-					stream_id: streamId,
-					key,
-					value: null,
-					huru: {
-						request_id: requestId,
-						credits_used: 0,
+					{
+						verified: true,
+						verificationMode: "unknown",
+						provider: "0g-storage+huru-kv-mirror",
 					},
-				},
+					responseBody,
+				);
+
+				return NextResponse.json(
+					{
+						...responseBody,
+						huru: {
+							request_id: requestId,
+							credits_used: 0,
+							kv_source: pointer.source,
+						},
+					},
 				{
 					headers: {
 						"x-request-id": requestId,
@@ -143,10 +149,11 @@ export async function GET(request: NextRequest) {
 
 		const responseBody = {
 			object: "storage.kv.get" as const,
-			stream_id: streamId,
-			key,
-			value,
-		};
+				stream_id: streamId,
+				key,
+				value,
+				kv_source: pointer.source,
+			};
 
 		await finalizeRequest(
 			requestId,
@@ -156,22 +163,23 @@ export async function GET(request: NextRequest) {
 				totalTokens: 0,
 				creditsUsed,
 			},
-			{
-				verified: true,
-				verificationMode: "tee",
-				provider: "0g-storage",
-			},
-			responseBody,
-		);
+				{
+					verified: true,
+					verificationMode: "unknown",
+					provider: "0g-storage+huru-kv-mirror",
+				},
+				responseBody,
+			);
 
 		return NextResponse.json(
 			{
 				...responseBody,
-				huru: {
-					request_id: requestId,
-					credits_used: creditsUsed,
+					huru: {
+						request_id: requestId,
+						credits_used: creditsUsed,
+						kv_source: pointer.source,
+					},
 				},
-			},
 			{
 				headers: {
 					"x-request-id": requestId,

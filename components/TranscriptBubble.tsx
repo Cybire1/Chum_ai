@@ -33,7 +33,7 @@ export function TranscriptBubble({
           accessibilityLabel={`Speaker: ${me ? "you" : "them"}. Tap to flip.`}
           style={[styles.chip, me ? styles.chipMe : styles.chipThem]}
         >
-          <Text style={[styles.chipLabel, me && { color: colors.ember }]}>
+          <Text style={[styles.chipLabel, me && { color: colors.lilac }]}>
             {me ? "YOU" : "THEM"}
           </Text>
         </PressableScale>
@@ -60,6 +60,7 @@ export function TranscriptBubble({
           multiline
           placeholder="…"
           placeholderTextColor={colors.faint}
+          selectionColor={colors.lilac}
           style={styles.input}
           accessibilityLabel={`${me ? "Your" : "Their"} message`}
         />
@@ -79,7 +80,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   chipMe: { borderColor: colors.emberLine, backgroundColor: colors.emberSoft },
-  chipThem: { borderColor: colors.border, backgroundColor: colors.card },
+  chipThem: { borderColor: colors.hairline, backgroundColor: colors.chip },
   chipLabel: { ...type.meta, color: colors.dim, letterSpacing: 1 },
   del: { width: 22, height: 22, justifyContent: "center", alignItems: "center" },
   delLabel: { color: colors.faint, fontSize: 12 },
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   bubbleMe: { backgroundColor: colors.emberSoft, borderColor: colors.emberLine },
-  bubbleThem: { backgroundColor: colors.card, borderColor: colors.border },
-  highlight: { borderColor: colors.ember },
+  bubbleThem: { backgroundColor: colors.cardHi, borderColor: colors.hairline },
+  highlight: { borderColor: colors.lilac },
   input: { ...type.body, color: colors.text, padding: 0, minWidth: 60 },
 });

@@ -37,14 +37,14 @@ export function DecodeCard({
       <View style={styles.section}>
         {data.evidence.map((e, i) => (
           <View key={i} style={styles.evRow}>
-            <Text style={styles.dot}>·</Text>
+            <Text style={[styles.dot, { color: c }]}>·</Text>
             <Text style={styles.ev}>{e}</Text>
           </View>
         ))}
       </View>
 
       <View style={styles.move}>
-        <Text style={styles.moveLabel}>YOUR MOVE</Text>
+        <Text style={[styles.moveLabel, { color: c }]}>YOUR MOVE</Text>
         <Text style={styles.moveText}>{data.suggested_move}</Text>
       </View>
 
@@ -56,7 +56,7 @@ export function DecodeCard({
           accessibilityLabel="Draft a reply"
           style={[styles.btn, styles.primary]}
         >
-          <Text style={styles.primaryLabel}>Draft the reply →</Text>
+          <Text style={styles.primaryLabel}>Draft the reply</Text>
         </PressableScale>
         <PressableScale
           onPress={onShare}
@@ -77,32 +77,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
+    borderTopColor: colors.topHi,
     padding: space.xl,
     gap: space.sm,
   },
   eyebrow: { ...type.meta, color: colors.faint, letterSpacing: 1.5 },
-  verdict: { ...type.title, fontSize: 26, marginBottom: space.sm },
+  verdict: { ...type.title, fontSize: 32, fontWeight: "800", marginBottom: space.sm },
   barTrack: { height: 6, borderRadius: 3, backgroundColor: colors.cardHi, overflow: "hidden" },
   barFill: { height: 6, borderRadius: 3 },
   conf: { ...type.meta, color: colors.muted, marginTop: 4 },
   section: { marginTop: space.md, gap: space.xs },
   evRow: { flexDirection: "row", gap: space.sm },
-  dot: { color: colors.ember, ...type.body },
+  dot: { ...type.body },
   ev: { ...type.body, color: colors.dim, flex: 1, lineHeight: 21 },
   move: {
     marginTop: space.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.well,
     borderRadius: radius.md,
     padding: space.lg,
     gap: 4,
   },
-  moveLabel: { ...type.meta, color: colors.ember, letterSpacing: 1 },
+  moveLabel: { ...type.meta, letterSpacing: 1 },
   moveText: { ...type.body, color: colors.text, lineHeight: 22 },
   actions: { flexDirection: "row", gap: space.sm, marginTop: space.md },
   btn: { height: 48, borderRadius: radius.md, justifyContent: "center", alignItems: "center" },
-  primary: { flex: 1, backgroundColor: colors.ember },
-  primaryLabel: { ...type.bodyMed, color: "#1A0E08", fontWeight: "700" },
-  ghost: { width: 52, borderWidth: 1, borderColor: colors.border },
+  primary: { flex: 1, backgroundColor: colors.white },
+  primaryLabel: { ...type.bodyMed, color: colors.ink, fontWeight: "700" },
+  ghost: { width: 52, borderWidth: 1, borderColor: colors.hairline },
   ghostLabel: { ...type.heading, color: colors.dim },
 });

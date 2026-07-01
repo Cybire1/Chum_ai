@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
@@ -13,7 +12,6 @@ gsap.registerPlugin(ScrollTrigger);
 
 export function DashOverview() {
   const { projectDetail, detailLoading, detailStatus, setShowProjectModal, setActiveSection, contentRef } = useDash();
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   /* KPI countup animation */
   useGSAP(() => {

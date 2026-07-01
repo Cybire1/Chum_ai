@@ -35,7 +35,19 @@ import {
 	saveRequest,
 	settleConsumerCredits,
 } from "@/lib/huru/store";
-import type { HuruConsumerRecord, HuruProjectRecord } from "@/lib/huru/types";
+import type {
+	HuruConsumerRecord,
+	HuruProjectRecord,
+	HuruUsageRecord,
+} from "@/lib/huru/types";
+
+function isFreeWingmanRequest(request: NextRequest): boolean {
+	return request.headers.get("x-huru-feature")?.trim().toLowerCase() === "wingman";
+}
+
+function waiveUsageCredits(usage: HuruUsageRecord): HuruUsageRecord {
+	return { ...usage, creditsUsed: 0 };
+}
 
 async function handleStreamingChat(
 	request: NextRequest,
@@ -48,11 +60,16 @@ async function handleStreamingChat(
 		messages: Array<{ role: string; content: string }>;
 	},
 	cacheKey: string | null,
+	creditsWaived: boolean,
 ) {
 	const doRelease = () =>
-		releaseConsumerReservedCredits(consumer, requestId, reservedAmount);
+		creditsWaived
+			? Promise.resolve()
+			: releaseConsumerReservedCredits(consumer, requestId, reservedAmount);
 	const doSettle = (actual: number) =>
-		settleConsumerCredits(consumer, requestId, actual, reservedAmount);
+		creditsWaived
+			? Promise.resolve()
+			: settleConsumerCredits(consumer, requestId, actual, reservedAmount);
 
 	let streamResult: StreamingRuntimeResult;
 	try {
@@ -108,6 +125,7 @@ async function handleStreamingChat(
 				}
 
 				const { usage, verification } = await streamResult.onComplete();
+				const chargedUsage = creditsWaived ? waiveUsageCredits(usage) : usage;
 				settled = true;
 				await doSettle(usage.creditsUsed);
 
@@ -129,7 +147,7 @@ async function handleStreamingChat(
 							],
 						},
 						model: payload.model,
-						creditsUsed: usage.creditsUsed,
+						creditsUsed: chargedUsage.creditsUsed,
 						verified: verification.verified,
 						verificationMode: verification.verificationMode,
 						provider: verification.provider,
@@ -139,7 +157,8 @@ async function handleStreamingChat(
 				const huruMeta = {
 					huru: {
 						request_id: requestId,
-						credits_used: usage.creditsUsed,
+						credits_used: chargedUsage.creditsUsed,
+						free: creditsWaived || undefined,
 						verified: verification.verified,
 						verification_mode: verification.verificationMode,
 						provider: verification.provider,
@@ -149,10 +168,11 @@ async function handleStreamingChat(
 					encoder.encode(`data: ${JSON.stringify(huruMeta)}\n\n`),
 				);
 
-				await finalizeRequest(requestId, usage, verification, {
+				await finalizeRequest(requestId, chargedUsage, verification, {
 					object: "chat.completion",
 					model: payload.model,
 					streamed: true,
+					free: creditsWaived || undefined,
 				});
 
 				controller.close();
@@ -201,6 +221,7 @@ export async function POST(request: NextRequest) {
 		return authResult;
 	}
 	const { project, consumer } = authResult;
+	const creditsWaived = isFreeWingmanRequest(request);
 
 	const rateLimit = checkRateLimit(project.publicId);
 	if (!rateLimit.allowed) {
@@ -335,24 +356,28 @@ export async function POST(request: NextRequest) {
 	}
 
 	const requestId = makeRequestId();
-	const estimatedCredits = estimateChatCredits(payload.messages, payload.max_tokens, payload.model);
+	const estimatedCredits = creditsWaived
+		? 0
+		: estimateChatCredits(payload.messages, payload.max_tokens, payload.model);
 
-	const reserveResult = await preReserveConsumerCredits(consumer, estimatedCredits, requestId);
-	if (!reserveResult.ok) {
-		const checkoutUrl = await createQuickCheckoutUrl(project, consumer).catch(
-			() => "",
-		);
-		return jsonErrorWithBody(
-			402,
-			"billing_error",
-			"insufficient_credits",
-			`Insufficient credits: ${reserveResult.balance} available, ${reserveResult.needed} needed.`,
-			{
-				credits_balance: reserveResult.balance,
-				credits_needed: reserveResult.needed,
-				...(checkoutUrl ? { checkout_url: checkoutUrl } : {}),
-			},
-		);
+	if (!creditsWaived) {
+		const reserveResult = await preReserveConsumerCredits(consumer, estimatedCredits, requestId);
+		if (!reserveResult.ok) {
+			const checkoutUrl = await createQuickCheckoutUrl(project, consumer).catch(
+				() => "",
+			);
+			return jsonErrorWithBody(
+				402,
+				"billing_error",
+				"insufficient_credits",
+				`Insufficient credits: ${reserveResult.balance} available, ${reserveResult.needed} needed.`,
+				{
+					credits_balance: reserveResult.balance,
+					credits_needed: reserveResult.needed,
+					...(checkoutUrl ? { checkout_url: checkoutUrl } : {}),
+				},
+			);
+		}
 	}
 
 	try {
@@ -370,7 +395,9 @@ export async function POST(request: NextRequest) {
 			consumerEmail: consumer.email,
 		});
 	} catch (error) {
-		await releaseConsumerReservedCredits(consumer, requestId, estimatedCredits);
+		if (!creditsWaived) {
+			await releaseConsumerReservedCredits(consumer, requestId, estimatedCredits);
+		}
 		if (error instanceof IdempotencyConflictError) {
 			return jsonErrorWithHeaders(
 				409,
@@ -395,27 +422,38 @@ export async function POST(request: NextRequest) {
 				messages: payload.messages,
 			},
 			cacheKey,
+			creditsWaived,
 		);
 	}
 
 	const doRelease = () =>
-		releaseConsumerReservedCredits(consumer, requestId, estimatedCredits);
+		creditsWaived
+			? Promise.resolve()
+			: releaseConsumerReservedCredits(consumer, requestId, estimatedCredits);
 	const doSettle = (actual: number) =>
-		settleConsumerCredits(consumer, requestId, actual, estimatedCredits);
+		creditsWaived
+			? Promise.resolve()
+			: settleConsumerCredits(consumer, requestId, actual, estimatedCredits);
 
 	try {
 		const result = await runChatCompletion({
 			model: payload.model,
 			messages: payload.messages,
 		});
+		const chargedUsage = creditsWaived
+			? waiveUsageCredits(result.usage)
+			: result.usage;
 
 		await doSettle(result.usage.creditsUsed);
 
 		await finalizeRequest(
 			requestId,
-			result.usage,
+			chargedUsage,
 			result.verification,
-			result.body,
+			{
+				...result.body,
+				free: creditsWaived || undefined,
+			},
 		);
 
 		// Populate cache after successful response
@@ -423,7 +461,7 @@ export async function POST(request: NextRequest) {
 			setCachedResponse(cacheKey, {
 				body: result.body,
 				model: payload.model,
-				creditsUsed: result.usage.creditsUsed,
+				creditsUsed: chargedUsage.creditsUsed,
 				verified: result.verification.verified,
 				verificationMode: result.verification.verificationMode,
 				provider: result.verification.provider,
@@ -435,7 +473,8 @@ export async function POST(request: NextRequest) {
 				...result.body,
 				huru: {
 					request_id: requestId,
-					credits_used: result.usage.creditsUsed,
+					credits_used: chargedUsage.creditsUsed,
+					free: creditsWaived || undefined,
 					verified: result.verification.verified,
 					verification_mode: result.verification.verificationMode,
 					provider: result.verification.provider,

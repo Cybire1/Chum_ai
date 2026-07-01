@@ -64,6 +64,7 @@ type ScaleProps = PressableProps & {
   hkind?: HapticKind;
   to?: number;
   style?: StyleProp<ViewStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
   entering?: React.ComponentProps<typeof Animated.View>["entering"];
   layout?: React.ComponentProps<typeof Animated.View>["layout"];
@@ -76,6 +77,7 @@ export function PressableScale({
   onPressOut,
   onPress,
   style,
+  containerStyle,
   children,
   entering,
   layout,
@@ -95,6 +97,7 @@ export function PressableScale({
         onPressOut?.(e);
       }}
       onPress={onPress}
+      style={containerStyle}
       {...rest}
     >
       <Animated.View entering={entering} layout={layout} style={[a, style]}>

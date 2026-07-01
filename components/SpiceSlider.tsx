@@ -5,6 +5,13 @@ import { spiceLabel } from "../lib/format";
 import { PressableScale } from "../lib/motion";
 import { colors, radius, space, type } from "../lib/theme";
 
+// Active segment fill warms by value — lilac → rose → peach — the Spotlight Tell.
+const SEG_TINT: Record<1 | 2 | 3, string> = {
+  1: colors.lilacTint,
+  2: colors.roseTint,
+  3: colors.peachTint,
+};
+
 // Segmented 1/2/3 control. Hard-capped at 3 (bold-but-SFW) — there is no
 // explicit tier (App Store 1.1.4).
 export function SpiceSlider({
@@ -27,9 +34,12 @@ export function SpiceSlider({
               accessibilityRole="button"
               accessibilityLabel={`Spice: ${spiceLabel(s)}`}
               accessibilityState={{ selected: active }}
-              style={[styles.seg, active && styles.segActive]}
+              style={[
+                styles.seg,
+                active && { backgroundColor: SEG_TINT[s] },
+              ]}
             >
-              <Text style={[styles.segLabel, active && { color: colors.text }]}>
+              <Text style={[styles.segLabel, active && styles.segLabelActive]}>
                 {spiceLabel(s)}
               </Text>
             </PressableScale>
@@ -47,7 +57,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     padding: 4,
     gap: 4,
   },
@@ -58,7 +68,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  segActive: { backgroundColor: colors.emberSoft },
   segLabel: { ...type.bodyMed, color: colors.muted },
+  segLabelActive: { color: colors.text },
   hint: { ...type.meta, color: colors.faint, marginTop: space.sm },
 });

@@ -11,7 +11,7 @@ import { isAuthError, resolveRequestAuth } from "@/lib/huru/resolve-auth";
 import {
 	defaultStreamId,
 	estimateKvWriteCredits,
-	kvPut,
+	kvPutResilient,
 } from "@/lib/huru/storage";
 import { getStorageWalletForConsumer } from "@/lib/huru/wallet-manager";
 import {
@@ -113,17 +113,18 @@ export async function POST(request: NextRequest) {
 
 	try {
 		const wallet = await getStorageWalletForConsumer(consumer);
-		const result = await kvPut(streamId, payload.key, payload.value, wallet);
+		const result = await kvPutResilient(streamId, payload.key, payload.value, wallet);
 
 		const creditsUsed = estimateKvWriteCredits();
 		await doSettle(creditsUsed);
 
 		const responseBody = {
 			object: "storage.kv.put" as const,
-			stream_id: streamId,
-			key: payload.key,
-			tx_hash: result.txHash,
-		};
+				stream_id: streamId,
+				key: payload.key,
+				tx_hash: result.txHash,
+				kv_source: result.source,
+			};
 
 		await finalizeRequest(
 			requestId,
@@ -133,22 +134,29 @@ export async function POST(request: NextRequest) {
 				totalTokens: 0,
 				creditsUsed,
 			},
-			{
-				verified: true,
-				verificationMode: "tee",
-				provider: "0g-storage",
-			},
-			responseBody,
-		);
+				{
+					verified: true,
+					verificationMode: "unknown",
+					provider: "0g-storage+huru-kv-mirror",
+				},
+				responseBody,
+			);
 
 		return NextResponse.json(
 			{
 				...responseBody,
-				huru: {
-					request_id: requestId,
-					credits_used: creditsUsed,
+					huru: {
+						request_id: requestId,
+						credits_used: creditsUsed,
+						kv_source: result.source,
+						kv_mirror: result.mirror
+							? {
+									backend: result.mirror.backend,
+									version: result.mirror.version,
+								}
+							: null,
+					},
 				},
-			},
 			{
 				headers: {
 					"x-request-id": requestId,

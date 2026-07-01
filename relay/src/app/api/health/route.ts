@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCacheStats } from "@/lib/huru/cache";
 import { runtimeConfig } from "@/lib/huru/config";
+import { kvMirrorStatus } from "@/lib/huru/kv-mirror";
 import { getProjectSnapshot } from "@/lib/huru/store";
 
 export async function GET() {
@@ -18,6 +19,10 @@ export async function GET() {
       supabase: Boolean(runtimeConfig.supabaseUrl && runtimeConfig.supabaseAnonKey),
       paystack: Boolean(runtimeConfig.paystackSecretKey),
       zero_g: Boolean(runtimeConfig.zeroGPrivateKey),
+    },
+    storage: {
+      kv_gateway_configured: Boolean(runtimeConfig.storageKvUrl),
+      kv_mirror: kvMirrorStatus(),
     },
     cache: getCacheStats(),
   });

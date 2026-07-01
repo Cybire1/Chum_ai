@@ -21,7 +21,7 @@
   function getStoredToken(apiKey) {
     try {
       return localStorage.getItem(storageKey(apiKey));
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -29,7 +29,7 @@
   function setStoredToken(apiKey, token) {
     try {
       localStorage.setItem(storageKey(apiKey), token);
-    } catch (e) {
+    } catch {
       // storage unavailable
     }
   }
@@ -37,7 +37,7 @@
   function removeStoredToken(apiKey) {
     try {
       localStorage.removeItem(storageKey(apiKey));
-    } catch (e) {
+    } catch {
       // storage unavailable
     }
   }
@@ -52,13 +52,12 @@
   }
 
   HuruClient.prototype.signIn = function () {
-    var self = this;
     return new Promise(function (resolve, reject) {
       var origin = window.location.origin;
       var url =
-        self._baseUrl +
+        this._baseUrl +
         "/auth/consumer?apiKey=" +
-        encodeURIComponent(self._apiKey) +
+        encodeURIComponent(this._apiKey) +
         "&origin=" +
         encodeURIComponent(origin);
 
@@ -90,23 +89,23 @@
       var resolved = false;
       var pollTimer = null;
 
-      function onMessage(event) {
-        if (event.origin !== self._baseUrl) return;
+      var onMessage = function (event) {
+        if (event.origin !== this._baseUrl) return;
         var data = event.data;
         if (!data || typeof data !== "object") return;
 
         if (data.type === "huru:auth:success" && data.token) {
           resolved = true;
           cleanup();
-          self._token = data.token;
-          setStoredToken(self._apiKey, data.token);
+          this._token = data.token;
+          setStoredToken(this._apiKey, data.token);
           resolve({ token: data.token });
         } else if (data.type === "huru:auth:error") {
           resolved = true;
           cleanup();
           reject(new Error(data.error || "Authentication failed."));
         }
-      }
+      }.bind(this);
 
       function cleanup() {
         window.removeEventListener("message", onMessage);
@@ -123,7 +122,7 @@
           reject(new Error("Sign-in cancelled."));
         }
       }, 500);
-    });
+    }.bind(this));
   };
 
   HuruClient.prototype.signOut = function () {
@@ -151,22 +150,21 @@
   };
 
   HuruClient.prototype.topUp = function (packId) {
-    var self = this;
     return new Promise(function (resolve, reject) {
-      if (!self._token) {
+      if (!this._token) {
         reject(new Error("Not signed in. Call signIn() first."));
         return;
       }
 
       // Open Paystack-based checkout in a new window
       var url =
-        self._baseUrl +
+        this._baseUrl +
         "/v1/consumers/checkout?pack=" +
         encodeURIComponent(packId || "credits_10") +
         "&token=" +
-        encodeURIComponent(self._token) +
+        encodeURIComponent(this._token) +
         "&apiKey=" +
-        encodeURIComponent(self._apiKey);
+        encodeURIComponent(this._apiKey);
 
       var popup = window.open(url, "huru_topup", "width=500,height=650");
       if (!popup) {
@@ -181,17 +179,16 @@
           resolve({ closed: true });
         }
       }, 500);
-    });
+    }.bind(this));
   };
 
   HuruClient.prototype._request = function (method, path, body, isFormData) {
-    var self = this;
     var headers = {
-      "X-Huru-Api-Key": self._apiKey,
+      "X-Huru-Api-Key": this._apiKey,
     };
 
-    if (self._token) {
-      headers["Authorization"] = "Bearer " + self._token;
+    if (this._token) {
+      headers["Authorization"] = "Bearer " + this._token;
     }
 
     var fetchOpts = {
@@ -208,11 +205,11 @@
       }
     }
 
-    return fetch(self._baseUrl + path, fetchOpts).then(function (res) {
+    return fetch(this._baseUrl + path, fetchOpts).then(function (res) {
       if (res.status === 401) {
-        // Token expired or invalid — clear stored token
-        self._token = null;
-        removeStoredToken(self._apiKey);
+        // Token expired or invalid - clear stored token
+        this._token = null;
+        removeStoredToken(this._apiKey);
         return Promise.reject(
           new Error("Unauthorized. Please sign in again.")
         );
@@ -228,7 +225,7 @@
         }
         return data;
       });
-    });
+    }.bind(this));
   };
 
   var Huru = {

@@ -1,5 +1,6 @@
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -8,75 +9,105 @@ import { ReplyCard } from "../components/ReplyCard";
 import { Skeleton } from "../components/Skeleton";
 import { SpiceSlider } from "../components/SpiceSlider";
 import { VibePicker } from "../components/VibePicker";
-import { ApiError, rizzReply } from "../lib/api";
-import {
-  isEntitled,
-  loadEntitlement,
-  subscribeEntitlement,
-} from "../lib/entitlement";
+import { ZeroGReceipt } from "../components/ZeroGReceipt";
+import { ApiError, describeApiError, rizzReply } from "../lib/api";
+import { isEntitled, loadEntitlement, subscribeEntitlement } from "../lib/entitlement";
+import { getPrivateMemoryState } from "../lib/memory";
 import { Animated, FadeIn, haptic, PressableScale, ThinkingDots } from "../lib/motion";
-import { setSession, useSession } from "../lib/store";
+import { getSession, setSession, useSession } from "../lib/store";
 import { colors, radius, space, type } from "../lib/theme";
-import type { Reply } from "../lib/types";
+import type { Reply, Vibe } from "../lib/types";
 
 export default function Reveal() {
-  const session = useSession();
-  const { conversation, contextNote, vibe, spice, persona, replies } = session;
+  const { conversation, vibe, spice, replies, lastReceipt } = useSession();
   const [loading, setLoading] = useState(false);
   const [regenId, setRegenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [entitled, setEntitled] = useState(isEntitled());
+  const [memoryRoot, setMemoryRoot] = useState<string | null>(null);
+  const busy = useRef(false);
 
   useEffect(() => {
     loadEntitlement().then(setEntitled);
+    getPrivateMemoryState().then((s) => setMemoryRoot(s.lastRootHash)).catch(() => {});
     return subscribeEntitlement(() => setEntitled(isEntitled()));
   }, []);
 
-  const fetchReplies = async () => {
+  // Read the latest session at call time so this stays stable (no stale closure).
+  const fetchReplies = useCallback(async (over?: { vibe?: Vibe; spice?: 1 | 2 | 3 }) => {
+    if (busy.current) return;
+    const s = getSession();
+    if (s.conversation.length === 0) {
+      setError("Paste a conversation first.");
+      return;
+    }
+    busy.current = true;
     setError(null);
     setLoading(true);
     try {
       const r = await rizzReply({
-        conversation,
-        context_note: contextNote || undefined,
-        vibe,
-        spice,
-        persona,
+        conversation: s.conversation,
+        context_note: s.contextNote || undefined,
+        vibe: over?.vibe ?? s.vibe,
+        spice: over?.spice ?? s.spice,
+        persona: s.persona,
       });
-      setSession({ replies: r.replies });
+      setSession({ replies: r.replies, lastReceipt: r.huru });
       haptic("success");
     } catch (e) {
       if (e instanceof ApiError && e.code === "insufficient_credits") {
         router.push("/paywall");
       } else {
-        setError("Couldn't reach the wingman. Try again.");
+        setError(describeApiError(e, "Couldn't reach the wingman. Tap to try again."));
         haptic("warning");
       }
     } finally {
       setLoading(false);
+      busy.current = false;
     }
+  }, []);
+
+  // Auto-generate the moment we land here — and again after an edit clears the set.
+  useFocusEffect(
+    useCallback(() => {
+      const s = getSession();
+      if (s.replies.length === 0 && s.conversation.length > 0) fetchReplies();
+    }, [fetchReplies]),
+  );
+
+  const onVibe = (v: Vibe) => {
+    setSession({ vibe: v });
+    haptic("light");
+    fetchReplies({ vibe: v });
+  };
+  const onSpice = (s: 1 | 2 | 3) => {
+    setSession({ spice: s });
+    fetchReplies({ spice: s });
   };
 
   const regenerate = async (id: string) => {
     setRegenId(id);
     try {
+      const s = getSession();
       const r = await rizzReply({
-        conversation,
-        context_note: contextNote || undefined,
-        vibe,
-        spice,
-        persona,
-        exclude_ids: replies.map((x) => x.id),
+        conversation: s.conversation,
+        context_note: s.contextNote || undefined,
+        vibe: s.vibe,
+        spice: s.spice,
+        persona: s.persona,
+        exclude_ids: s.replies.map((x) => x.id),
         regenerate: true,
       });
       const fresh = r.replies[0];
       if (fresh) {
         setSession({
-          replies: replies.map((x) => (x.id === id ? { ...fresh, id } : x)),
+          replies: s.replies.map((x) => (x.id === id ? { ...fresh, id } : x)),
+          lastReceipt: r.huru,
         });
         haptic("success");
       }
-    } catch {
+    } catch (e) {
+      setError(describeApiError(e, "Couldn't regenerate that reply. Tap to try again."));
       haptic("warning");
     } finally {
       setRegenId(null);
@@ -84,7 +115,6 @@ export default function Reveal() {
   };
 
   const share = async (reply: Reply) => {
-    // TODO: render a branded, auto-anonymized share CARD (view-shot) — v0 shares text.
     try {
       await Share.share({ message: `${reply.text}\n\n— drafted with Chum` });
     } catch {
@@ -92,37 +122,45 @@ export default function Reveal() {
     }
   };
 
+  const editMessages = () => {
+    haptic("light");
+    router.push("/transcript");
+  };
+
+  const lastThem = (() => {
+    for (let i = conversation.length - 1; i >= 0; i--) {
+      if (conversation[i]?.speaker === "them") return conversation[i]!.text;
+    }
+    return conversation.at(-1)?.text ?? "";
+  })();
+
   const hasReplies = replies.length > 0;
   const locked = !entitled;
 
   return (
     <View style={styles.root}>
-      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-        <View style={styles.nav}>
-          <PressableScale onPress={() => router.back()} accessibilityLabel="Back" style={styles.back}>
-            <Text style={styles.backGlyph}>‹</Text>
-          </PressableScale>
-          <Text style={styles.navTitle}>Your replies</Text>
-          <View style={{ width: 36 }} />
-        </View>
-
+      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.ctrlLabel}>VIBE</Text>
-          <VibePicker value={vibe} onChange={(v) => setSession({ vibe: v })} />
-
-          <Text style={[styles.ctrlLabel, { marginTop: space.lg }]}>SPICE</Text>
-          <SpiceSlider value={spice} onChange={(s) => setSession({ spice: s })} />
-
-          {!hasReplies && !loading ? (
-            <Button
-              label="Get my replies →"
-              onPress={fetchReplies}
-              style={{ marginTop: space.xl }}
-            />
+          {/* what we're replying to — with the optional edit escape hatch */}
+          {lastThem ? (
+            <View style={styles.ctx}>
+              <View style={styles.ctxHead}>
+                <Text style={styles.ctxLabel}>REPLYING TO</Text>
+                <PressableScale onPress={editMessages} hitSlop={8} accessibilityRole="button" accessibilityLabel="Edit the messages">
+                  <View style={styles.editLink}>
+                    <Ionicons name="create-outline" size={14} color={colors.rose} />
+                    <Text style={styles.editLinkText}>Edit</Text>
+                  </View>
+                </PressableScale>
+              </View>
+              <Text style={styles.ctxText} numberOfLines={3}>
+                {lastThem}
+              </Text>
+            </View>
           ) : null}
 
-          {loading ? (
-            <Animated.View entering={FadeIn.duration(280)} style={{ marginTop: space.xl, gap: space.md }}>
+          {loading && !hasReplies ? (
+            <Animated.View entering={FadeIn.duration(280)} style={{ gap: space.md }}>
               <View style={styles.thinkingRow}>
                 <ThinkingDots />
                 <Text style={styles.loadingLine}>reading the vibe…</Text>
@@ -139,26 +177,25 @@ export default function Reveal() {
             </Animated.View>
           ) : null}
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error && !hasReplies ? (
+            <PressableScale onPress={() => fetchReplies()} style={styles.errBox} accessibilityRole="button" accessibilityLabel="Retry">
+              <Text style={styles.error}>{error}</Text>
+            </PressableScale>
+          ) : null}
 
-          {hasReplies && !loading ? (
-            <View style={{ marginTop: space.xl, gap: space.md }}>
+          {hasReplies ? (
+            <View style={{ gap: space.md }}>
               {replies.map((r, i) => {
                 const blurred = locked && i > 0;
                 return (
-                  <View key={r.id}>
-                    <View
-                      style={blurred ? styles.lockedWrap : undefined}
-                      pointerEvents={blurred ? "none" : "auto"}
-                    >
-                      <ReplyCard
-                        reply={blurred ? { ...r, text: "•••••• •••• ••••• •••••• ••••" } : r}
-                        index={i}
-                        regenerating={regenId === r.id}
-                        onRegenerate={() => regenerate(r.id)}
-                        onShare={() => share(r)}
-                      />
-                    </View>
+                  <View key={r.id} style={blurred ? styles.lockedWrap : undefined} pointerEvents={blurred ? "none" : "auto"}>
+                    <ReplyCard
+                      reply={blurred ? { ...r, text: "•••••• •••• ••••• •••••• ••••" } : r}
+                      index={i}
+                      regenerating={regenId === r.id}
+                      onRegenerate={() => regenerate(r.id)}
+                      onShare={() => share(r)}
+                    />
                   </View>
                 );
               })}
@@ -171,21 +208,28 @@ export default function Reveal() {
                   accessibilityLabel="Unlock all replies"
                   style={styles.unlock}
                 >
-                  <Text style={styles.unlockLabel}>Unlock the sharper options →</Text>
+                  <Text style={styles.unlockLabel}>Unlock the sharper options</Text>
                   <Text style={styles.unlockHint}>{replies.length - 1} more, plus bolder + your voice</Text>
                 </PressableScale>
               ) : null}
 
-              <Button
-                label="Regenerate the set"
-                variant="ghost"
-                onPress={fetchReplies}
-                style={{ marginTop: space.sm }}
-              />
+              <Button label="Regenerate the set" variant="ghost" onPress={() => fetchReplies()} loading={loading} style={{ marginTop: space.xs }} />
+              <ZeroGReceipt receipt={lastReceipt} memoryRootHash={memoryRoot} />
             </View>
           ) : null}
 
-          <Text style={styles.trust}>🔒 Processed in a sealed enclave · never stored</Text>
+          {/* inline tuning — tweak and it re-rolls instantly. never gates the first set. */}
+          {hasReplies ? (
+            <View style={[styles.tune, loading && { opacity: 0.5 }]} pointerEvents={loading ? "none" : "auto"}>
+              <Text style={styles.tuneTitle}>Not quite? Tune it.</Text>
+              <Text style={styles.ctrlLabel}>VIBE</Text>
+              <VibePicker value={vibe} onChange={onVibe} />
+              <Text style={[styles.ctrlLabel, { marginTop: space.md }]}>SPICE</Text>
+              <SpiceSlider value={spice} onChange={onSpice} />
+            </View>
+          ) : null}
+
+          <Text style={styles.trust}>Private by default · memory only when you allow it</Text>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -194,40 +238,46 @@ export default function Reveal() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  nav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.lg, height: 48 },
-  back: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  backGlyph: { fontSize: 28, color: colors.dim },
-  navTitle: { ...type.heading, color: colors.text },
   scroll: { padding: space.xl, paddingBottom: space.xxl },
-  ctrlLabel: { ...type.label, color: colors.faint, marginBottom: space.sm },
-  thinkingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: space.md,
-    marginBottom: space.xs,
+  ctx: {
+    backgroundColor: colors.well,
+    borderRadius: radius.lg,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.rose,
+    padding: space.lg,
+    marginBottom: space.lg,
   },
+  ctxHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  ctxLabel: { ...type.meta, color: colors.dim, letterSpacing: 0.5 },
+  editLink: { flexDirection: "row", alignItems: "center", gap: 4 },
+  editLinkText: { ...type.footnote, color: colors.rose, fontWeight: "600" },
+  ctxText: { ...type.body, color: colors.text },
+  thinkingRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: space.md, marginBottom: space.xs },
   loadingLine: { ...type.meta, color: colors.dim },
   skelCard: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     padding: space.lg,
     gap: space.sm,
   },
-  error: { ...type.body, color: colors.bad, marginTop: space.lg, textAlign: "center" },
+  errBox: { padding: space.lg, alignItems: "center" },
+  error: { ...type.body, color: colors.bad, textAlign: "center" },
   lockedWrap: { opacity: 0.35 },
   unlock: {
-    backgroundColor: colors.emberSoft,
-    borderColor: colors.emberLine,
+    backgroundColor: colors.roseTint,
+    borderColor: colors.rose,
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: space.lg,
     alignItems: "center",
     gap: 2,
   },
-  unlockLabel: { ...type.heading, color: colors.ember },
+  unlockLabel: { ...type.heading, color: colors.rose },
   unlockHint: { ...type.meta, color: colors.dim },
+  tune: { marginTop: space.xl, paddingTop: space.lg, borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  tuneTitle: { ...type.heading, color: colors.text, marginBottom: space.md },
+  ctrlLabel: { ...type.label, color: colors.faint, marginBottom: space.sm },
   trust: { ...type.meta, color: colors.faint, textAlign: "center", marginTop: space.xl },
 });

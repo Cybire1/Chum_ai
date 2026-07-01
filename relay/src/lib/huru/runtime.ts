@@ -1,4 +1,4 @@
-import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
+import { createZGComputeNetworkBroker } from "@0gfoundation/0g-compute-ts-sdk";
 import { ethers } from "ethers";
 import { runtimeConfig } from "@/lib/huru/config";
 import { getModelMultiplier } from "@/lib/huru/model-tiers";
@@ -14,6 +14,10 @@ interface HuruChatMessage {
   tool_call_id?: string;
 }
 
+type VisionTextPart = { type: "text"; text: string };
+type VisionImagePart = { type: "image_url"; image_url: { url: string } };
+type VisionContentPart = VisionTextPart | VisionImagePart;
+
 /**
  * Strip tool-related messages that upstream providers don't support.
  * Removes messages with role "tool" and assistant messages containing tool_calls,
@@ -24,7 +28,8 @@ function sanitizeMessages(messages: HuruChatMessage[]): HuruChatMessage[] {
     .filter((m) => m.role !== "tool")
     .map((m) => {
       if (m.role === "assistant" && m.tool_calls) {
-        const { tool_calls, ...rest } = m;
+        const rest = { ...m };
+        delete rest.tool_calls;
         return rest;
       }
       return m;
@@ -68,6 +73,11 @@ interface ZeroGChatResponse {
     completion_tokens?: number;
     total_tokens?: number;
   };
+}
+
+interface VisionImageInput {
+  data: string;
+  mimeType: string;
 }
 
 interface ZeroGTranscriptionResponse {
@@ -142,6 +152,11 @@ export function estimateChatCredits(
   return estimateCredits(inputTokens + cappedMax, model);
 }
 
+export function estimateVisionOcrCredits(imageCount: number): number {
+  const estimatedTokens = Math.max(1, imageCount) * 1200 + 1024;
+  return estimateCredits(estimatedTokens, "huru/vision-ocr");
+}
+
 export function estimateTranscriptionCredits(file: File): number {
   const durationEstimate = Math.max(1, Math.ceil(file.size / 16000));
   const estimatedTokens = Math.max(1, durationEstimate * 25);
@@ -164,16 +179,14 @@ export function buildVerification(
   verifiability?: string,
 ): HuruVerificationRecord {
   const normalized = (verifiability || "").toLowerCase();
-  const mode =
-    normalized.includes("tee") || normalized.includes("teeml")
-      ? "tee"
-      : "tee";
+  const isTee =
+    normalized.includes("tee") || normalized.includes("teeml");
 
   return {
-    verified: true,
-    verificationMode: mode,
+    verified: isTee,
+    verificationMode: isTee ? "tee" : "unknown",
     provider,
-    verifiedAt: new Date().toISOString(),
+    verifiedAt: isTee ? new Date().toISOString() : undefined,
   };
 }
 
@@ -264,6 +277,28 @@ function isNonRetryableError(error: unknown): boolean {
   return false;
 }
 
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  label: string,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        `${label} timed out after ${Math.ceil(timeoutMs / 1000)}s`,
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 class ZeroGRuntimeClient {
   private constructor(
     private readonly broker: Broker,
@@ -307,6 +342,7 @@ class ZeroGRuntimeClient {
 
   private async pickProviders(
     serviceType: ZeroGServiceType,
+    modelPreference = runtimeConfig.chatModelPreference,
   ): Promise<ZeroGServiceDescriptor[]> {
     const services =
       (await this.broker.inference.listService()) as unknown[];
@@ -353,11 +389,9 @@ class ZeroGRuntimeClient {
       );
     }
 
-    // Optional: prefer a specific model (e.g. a fast model) when HURU_CHAT_MODEL
-    // is set. Matching providers sort first; the rest stay as failover.
-    const preferredModel = (process.env.HURU_CHAT_MODEL ?? "")
-      .trim()
-      .toLowerCase();
+    // Prefer the fastest configured chat model. Matching providers sort first;
+    // the rest stay as failover so Huru keeps working if the provider is down.
+    const preferredModel = modelPreference.trim().toLowerCase();
 
     return matches.sort((a, b) => {
       if (preferredModel) {
@@ -483,6 +517,129 @@ class ZeroGRuntimeClient {
         ),
       };
     });
+  }
+
+  async runVisionOcr(payload: {
+    images: VisionImageInput[];
+    prompt: string;
+  }): Promise<RuntimeResult> {
+    const providers = await this.pickProviders(
+      "chatbot",
+      runtimeConfig.visionModelPreference,
+    );
+    const attempts = Math.min(providers.length, MAX_FAILOVER_ATTEMPTS);
+    const errors: string[] = [];
+
+    for (let i = 0; i < attempts; i++) {
+      const provider = providers[i];
+      try {
+        await this.ensureProviderReady(provider.provider);
+
+        const metadata = await this.broker.inference.getServiceMetadata(
+          provider.provider,
+        );
+        const headers = await this.broker.inference.getRequestHeaders(
+          provider.provider,
+        );
+
+        const content: VisionContentPart[] = [
+          { type: "text", text: payload.prompt },
+          ...payload.images.map((image) => ({
+            type: "image_url" as const,
+            image_url: {
+              url: `data:${image.mimeType};base64,${image.data}`,
+            },
+          })),
+        ];
+
+        const response = await fetchWithTimeout(
+          `${metadata.endpoint}/chat/completions`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...headers,
+            },
+            body: JSON.stringify({
+              model: metadata.model,
+              messages: [{ role: "user", content }],
+              temperature: 0,
+              max_tokens: 1600,
+            }),
+          },
+          runtimeConfig.visionRequestTimeoutMs,
+          "0G vision OCR",
+        );
+
+        if (!response.ok) {
+          const detail = await response
+            .text()
+            .catch(() => "Unknown provider error");
+          throw new Error(
+            `0G vision OCR failed (${response.status}): ${detail}`,
+          );
+        }
+
+        const data = (await response.json()) as ZeroGChatResponse;
+        const transcript =
+          data.choices?.[0]?.message?.content?.trim() ?? "";
+        const responseKey =
+          response.headers.get("ZG-Res-Key") ||
+          response.headers.get("zg-res-key") ||
+          data.id ||
+          null;
+
+        const promptTokens =
+          estimateTokens(payload.prompt) + payload.images.length * 1200;
+        const completionTokens = estimateTokens(transcript);
+        const totalTokens = Math.max(1, promptTokens + completionTokens);
+        const usage: HuruUsageRecord = {
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          creditsUsed: estimateCredits(totalTokens, "huru/vision-ocr"),
+        };
+
+        if (responseKey) {
+          await this.broker.inference.processResponse(
+            provider.provider,
+            responseKey,
+            JSON.stringify({
+              prompt_tokens: promptTokens,
+              completion_tokens: completionTokens,
+              total_tokens: totalTokens,
+            }),
+          );
+        }
+
+        return {
+          body: {
+            object: "vision.ocr",
+            model: "huru/vision-ocr",
+            provider_model: metadata.model,
+            transcript,
+          },
+          usage,
+          verification: buildVerification(
+            provider.provider,
+            provider.verifiability,
+          ),
+        };
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error);
+        errors.push(`${provider.provider}: ${message}`);
+        recordProviderFailure(provider.provider);
+
+        if (isNonRetryableError(error)) {
+          break;
+        }
+      }
+    }
+
+    throw new Error(
+      `All ${errors.length} vision provider(s) failed: ${errors.join("; ")}`,
+    );
   }
 
   async runChatStream(payload: {
@@ -837,6 +994,14 @@ export async function runChatCompletion(payload: {
 }): Promise<RuntimeResult> {
   const runtime = await getRuntimeClient();
   return runtime.runChat(payload);
+}
+
+export async function runVisionOcr(payload: {
+  images: VisionImageInput[];
+  prompt: string;
+}): Promise<RuntimeResult> {
+  const runtime = await getRuntimeClient();
+  return runtime.runVisionOcr(payload);
 }
 
 export async function runChatCompletionStream(payload: {

@@ -10,5 +10,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
   ],
-  "exclude": ["node_modules", "relay", "dist"]
+  "exclude": ["node_modules", "relay", "dist", "inft"]
 }

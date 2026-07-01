@@ -36,14 +36,7 @@ export default function Transcript() {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-        <View style={styles.nav}>
-          <PressableScale onPress={() => router.back()} accessibilityLabel="Back" style={styles.back}>
-            <Text style={styles.backGlyph}>‹</Text>
-          </PressableScale>
-          <Text style={styles.navTitle}>Check the chat</Text>
-          <View style={{ width: 36 }} />
-        </View>
+      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
 
         <Text style={styles.hint}>
           Read on your device. Tap a tag to fix who said what. Only the text goes out — in a sealed enclave.
@@ -67,10 +60,13 @@ export default function Transcript() {
 
         <View style={styles.footer}>
           <Button
-            label="Looks right →"
+            label="Update replies"
             onPress={() => {
               haptic("medium");
-              router.push("/reveal");
+              // clear the stale set so reveal re-generates from the edited messages
+              setSession({ replies: [] });
+              if (router.canGoBack()) router.back();
+              else router.replace("/reveal");
             }}
             disabled={conversation.length === 0}
           />
@@ -89,6 +85,6 @@ const styles = StyleSheet.create({
   hint: { ...type.meta, color: colors.faint, paddingHorizontal: space.xl, marginBottom: space.md },
   scroll: { padding: space.xl, paddingTop: space.sm },
   add: { paddingVertical: space.md, alignSelf: "flex-start" },
-  addLabel: { ...type.bodyMed, color: colors.ember },
+  addLabel: { ...type.bodyMed, color: colors.lilac },
   footer: { padding: space.xl, borderTopWidth: 1, borderTopColor: colors.borderSoft },
 });

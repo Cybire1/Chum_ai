@@ -3,12 +3,14 @@ import React from "react";
 import { ActivityIndicator, StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import { PressableScale } from "../lib/motion";
-import { colors, radius, space, type } from "../lib/theme";
+import { colors, gradients, radius, shadow, space, type } from "../lib/theme";
+
+type Variant = "primary" | "hero" | "ghost" | "subtle";
 
 type Props = {
   label: string;
   onPress?: () => void;
-  variant?: "primary" | "ghost" | "subtle";
+  variant?: Variant;
   disabled?: boolean;
   loading?: boolean;
   style?: ViewStyle;
@@ -25,39 +27,49 @@ export function Button({
   accessibilityLabel,
 }: Props) {
   const isPrimary = variant === "primary";
+  const isHero = variant === "hero";
   const isGhost = variant === "ghost";
+  const isSubtle = variant === "subtle";
+
+  // label / spinner ink per surface
+  const labelColor = isPrimary
+    ? colors.ink // near-black on the white pill
+    : isHero
+      ? "#FFFFFF" // white on the gradient gel
+      : colors.text;
+  const spinnerColor = isPrimary ? colors.ink : isHero ? "#FFFFFF" : colors.text;
+
   return (
     <PressableScale
       onPress={disabled || loading ? undefined : onPress}
-      hkind={isPrimary ? "medium" : "light"}
-      to={isPrimary ? 0.97 : 0.96}
+      hkind={isPrimary || isHero ? "medium" : "light"}
+      to={isHero ? 0.96 : isPrimary ? 0.97 : 0.96}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!disabled, busy: !!loading }}
       style={[
         styles.base,
-        isPrimary && styles.primaryShadow,
+        isPrimary && styles.primary,
+        isHero && styles.hero,
         isGhost && styles.ghost,
-        variant === "subtle" && styles.subtle,
+        isSubtle && styles.subtle,
         disabled && { opacity: 0.45 },
         style as ViewStyle,
       ]}
     >
-      {isPrimary ? (
+      {isHero ? (
         <LinearGradient
-          colors={["#FF7E52", "#F2592A"]}
+          colors={gradients.brand}
           start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
+          end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
       ) : null}
       <View style={styles.row}>
         {loading ? (
-          <ActivityIndicator color={isPrimary ? "#1A0E08" : colors.text} />
+          <ActivityIndicator color={spinnerColor} />
         ) : (
-          <Text style={[styles.label, { color: isPrimary ? "#1A0E08" : colors.text }]}>
-            {label}
-          </Text>
+          <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
         )}
       </View>
     </PressableScale>
@@ -67,22 +79,30 @@ export function Button({
 const styles = StyleSheet.create({
   base: {
     height: 54,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
     paddingHorizontal: space.xl,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
   },
-  row: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  primaryShadow: {
-    backgroundColor: colors.ember,
-    shadowColor: colors.ember,
-    shadowOpacity: 0.38,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+  // DEFAULT everyday CTA — flat WHITE PILL on near-black (no gradient, no shadow)
+  primary: {
+    backgroundColor: colors.white,
   },
-  ghost: { borderWidth: 1, borderColor: colors.border, backgroundColor: "transparent" },
-  subtle: { backgroundColor: colors.cardHi },
-  label: { ...type.bodyMed, fontWeight: "700", fontSize: 16 },
+  // the rationed gradient GEL-PILL — used exactly once per flow
+  hero: {
+    height: 56,
+    borderWidth: 1,
+    borderColor: colors.focus, // ~rgba(255,255,255,0.12) rim
+    ...shadow.brand,
+  },
+  // transparent, hairline-ringed ghost
+  ghost: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: colors.focus,
+  },
+  subtle: { backgroundColor: colors.chip },
+  row: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  label: { ...type.bodyMed, fontWeight: "800", fontSize: 16 },
 });

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "hardhat.config.ts",
+    "scripts/**/*.ts",
+    "test/**/*.ts",
+    "typechain/**/*.ts"
+  ],
+  "typechain": {
+    "outDir": "typechain",
+    "target": "ethers-v5",
+    "files": ["artifacts/contracts/**/*.json"]
+  },
+  "files": ["./hardhat.config.ts"]
+}

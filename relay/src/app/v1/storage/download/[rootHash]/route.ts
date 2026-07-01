@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
 import {
 	jsonError,
 	jsonErrorWithBody,
@@ -139,7 +139,7 @@ export async function GET(
 			},
 			{
 				verified: true,
-				verificationMode: "tee",
+				verificationMode: "unknown",
 				provider: "0g-storage",
 			},
 			{

@@ -1,37 +1,55 @@
 import * as ImagePicker from "expo-image-picker";
 
+import { visionAvailable, visionExtract, type VisionInputImage } from "./api";
 import type { Speaker, Turn } from "./types";
 
-// HARD REQUIREMENT (see BUILD_BRIEF.md §9): OCR runs ON DEVICE with Apple Vision.
-// Raw screenshots must never leave the phone — only confirmed text is sent to huru.
-//
-// Apple Vision requires a native module (a dev client / config plugin), so it is
-// NOT available in Expo Go. Until that module is added, the app uses the manual
-// paste path (fully functional). Wire a real module here:
-//   TODO: integrate `expo-text-extractor` or a custom VNRecognizeTextRequest module,
-//   implement extractFromImages(uris) -> string[], then set OCR_AVAILABLE = true.
+// PRIVACY (see BUILD_BRIEF.md §9): screenshots carry sensitive conversations, so
+// they must be handled with care. When a 0G vision model is configured the image
+// bytes are read INSIDE the 0G sealed enclave (TEE) for transcription and are
+// never stored — only the resulting ME/THEM text is used downstream. When vision
+// is off, the picker is unavailable and the user falls back to the manual paste
+// path (fully functional, nothing ever leaves the phone).
 
-export const OCR_AVAILABLE = false;
+export type Shot = { uri: string; base64?: string; mimeType?: string };
 
-export async function pickScreenshots(): Promise<string[]> {
+// OCR is available only when a 0G vision model is configured (enclave transcription).
+export const OCR_AVAILABLE = visionAvailable;
+
+export async function pickScreenshots(): Promise<Shot[]> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) return [];
   const res = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
     allowsMultipleSelection: true,
     selectionLimit: 6,
-    quality: 1,
+    quality: OCR_AVAILABLE ? 0.65 : 1,
+    base64: OCR_AVAILABLE,
   });
   if (res.canceled) return [];
-  return res.assets.map((a) => a.uri);
+  return res.assets.map((a) => ({
+    uri: a.uri,
+    base64: a.base64 ?? undefined,
+    mimeType: a.mimeType ?? undefined,
+  }));
 }
 
-// Placeholder until the native Vision module is wired.
-export async function extractFromImages(_uris: string[]): Promise<string[]> {
+// Transcribe screenshots into a ME/THEM transcript via the 0G vision enclave.
+// Throws "ocr_not_available" if vision is off or no image bytes were captured.
+export async function extractFromImages(shots: Shot[]): Promise<Turn[]> {
   if (!OCR_AVAILABLE) {
     throw new Error("ocr_not_available");
   }
-  return [];
+  const images: VisionInputImage[] = [];
+  for (const shot of shots) {
+    if (typeof shot.base64 === "string" && shot.base64.length > 0) {
+      images.push({ data: shot.base64, mime_type: shot.mimeType ?? "image/jpeg" });
+    }
+  }
+  if (images.length === 0) {
+    throw new Error("ocr_not_available");
+  }
+  const raw = await visionExtract(images);
+  return parseConversation(raw);
 }
 
 // Heuristic parse of pasted/typed text into a ME/THEM transcript.

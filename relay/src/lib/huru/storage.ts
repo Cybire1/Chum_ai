@@ -11,6 +11,7 @@ import {
 } from "@0glabs/0g-ts-sdk";
 import { ethers } from "ethers";
 import { runtimeConfig } from "@/lib/huru/config";
+import { kvMirrorGet, kvMirrorPut, type HuruKvMirrorPointer, type HuruKvMirrorWriteResult } from "@/lib/huru/kv-mirror";
 
 // ── Types ──
 
@@ -21,8 +22,24 @@ export interface StorageUploadResult {
 }
 
 export interface StorageKvWriteResult {
-	txHash: string;
-	rootHash: string;
+	txHash: string | null;
+	rootHash: string | null;
+	source?: "0g-kv";
+}
+
+export interface StorageKvReadResult {
+	value: string | null;
+	source: "0g-kv" | "huru-kv-mirror" | "none";
+	mirror?: HuruKvMirrorPointer;
+	officialError?: string;
+}
+
+export interface StorageKvResilientWriteResult {
+	txHash: string | null;
+	rootHash: string | null;
+	source: "0g-kv" | "huru-kv-mirror" | "0g-kv+huru-kv-mirror";
+	mirror?: HuruKvMirrorWriteResult;
+	officialError?: string;
 }
 
 // ── RPC endpoints (same as runtime.ts) ──
@@ -31,6 +48,12 @@ const zeroGRpcByNetwork = {
 	mainnet: "https://evmrpc.0g.ai",
 	testnet: "https://evmrpc-testnet.0g.ai",
 } as const;
+
+type StorageSdkSigner = Parameters<Indexer["upload"]>[2];
+
+function asStorageSdkSigner(signer: ethers.Wallet): StorageSdkSigner {
+	return signer as unknown as StorageSdkSigner;
+}
 
 function blockchainRpcUrl(): string {
 	const network = runtimeConfig.zeroGNetwork === "mainnet" ? "mainnet" : "testnet";
@@ -90,11 +113,10 @@ export async function uploadFile(
 	const indexer = getIndexer();
 	const memData = new MemData(new Uint8Array(data));
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- CJS/ESM ethers type mismatch at SDK boundary
 	const [result, error] = await indexer.upload(
 		memData,
 		blockchainRpcUrl(),
-		signer as any,
+		asStorageSdkSigner(signer),
 	);
 
 	if (error) {
@@ -120,10 +142,9 @@ export async function kvPut(
 
 	const indexer = getIndexer();
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- CJS/ESM ethers type mismatch
 	const flow = getFlowContract(
 		runtimeConfig.storageFlowContractAddress,
-		signer as any,
+		asStorageSdkSigner(signer),
 	);
 
 	const [nodes, selectError] = await indexer.selectNodes(1);
@@ -149,6 +170,53 @@ export async function kvPut(
 	return {
 		txHash: result.txHash,
 		rootHash: result.rootHash,
+		source: "0g-kv",
+	};
+}
+
+export async function kvPutResilient(
+	streamId: string,
+	key: string,
+	value: string,
+	signer: ethers.Wallet,
+): Promise<StorageKvResilientWriteResult> {
+	let official: StorageKvWriteResult | null = null;
+	let officialError: string | undefined;
+
+	if (runtimeConfig.storageIndexerUrl && runtimeConfig.storageFlowContractAddress) {
+		try {
+			official = await kvPut(streamId, key, value, signer);
+		} catch (error) {
+			officialError = error instanceof Error ? error.message : String(error);
+		}
+	} else {
+		officialError = "0G KV write is not configured.";
+	}
+
+	if (!runtimeConfig.kvMirrorEnabled) {
+		if (official) {
+			return {
+				txHash: official.txHash,
+				rootHash: official.rootHash,
+				source: "0g-kv",
+			};
+		}
+
+		throw new Error(officialError ?? "0G KV write failed and Huru KV mirror is disabled.");
+	}
+
+	const mirror = await kvMirrorPut(streamId, key, value, {
+		officialTxHash: official?.txHash ?? null,
+		officialRootHash: official?.rootHash ?? null,
+		source: official ? "0g-kv+huru-kv-mirror" : "huru-kv-mirror",
+	});
+
+	return {
+		txHash: official?.txHash ?? null,
+		rootHash: official?.rootHash ?? null,
+		source: official ? "0g-kv+huru-kv-mirror" : "huru-kv-mirror",
+		mirror,
+		officialError,
 	};
 }
 
@@ -189,6 +257,38 @@ export async function kvGet(
 
 	const decoded = Buffer.from(value.data, "base64");
 	return decoded.toString("utf-8");
+}
+
+export async function kvGetResilient(
+	streamId: string,
+	key: string,
+): Promise<StorageKvReadResult> {
+	let officialError: string | undefined;
+
+	if (runtimeConfig.storageKvUrl) {
+		try {
+			const value = await kvGet(streamId, key);
+			if (value !== null) {
+				return { value, source: "0g-kv" };
+			}
+		} catch (error) {
+			officialError = error instanceof Error ? error.message : String(error);
+		}
+	} else {
+		officialError = "ZERO_G_KV_URL is not configured.";
+	}
+
+	const mirror = await kvMirrorGet(streamId, key);
+	if (mirror) {
+		return {
+			value: mirror.value,
+			source: "huru-kv-mirror",
+			mirror,
+			officialError,
+		};
+	}
+
+	return { value: null, source: "none", officialError };
 }
 
 // ── Helpers ──

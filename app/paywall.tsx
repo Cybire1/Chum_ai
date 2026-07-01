@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../components/Button";
 import { setEntitled } from "../lib/entitlement";
 import { haptic, PressableScale } from "../lib/motion";
-import { colors, radius, space, type } from "../lib/theme";
+import { colors, radius, shadow, space, type } from "../lib/theme";
 
 type Plan = "annual" | "weekly";
 
@@ -96,6 +96,7 @@ export default function Paywall() {
             label={plan === "weekly" ? "Start free trial" : "Continue"}
             onPress={start}
             loading={busy}
+            variant="hero"
           />
           <Text style={styles.fine}>
             Auto-renews until cancelled. One tap to cancel in Settings. No surprise charges.
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
   h1: { ...type.hero, color: colors.text, marginBottom: space.xl },
   perks: { gap: space.md, marginBottom: space.xxl },
   perkRow: { flexDirection: "row", alignItems: "center", gap: space.md },
-  check: { color: colors.ember, ...type.heading },
+  check: { color: colors.lilac, ...type.heading },
   perk: { ...type.body, color: colors.dim, fontSize: 16 },
   plans: { gap: space.md },
   plan: {
@@ -128,16 +129,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     borderWidth: 1.5,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
     padding: space.lg,
   },
-  planActive: { borderColor: colors.ember, backgroundColor: colors.emberSoft },
+  planActive: { borderColor: colors.lilac, backgroundColor: colors.lilacTint, ...shadow.card },
   planTop: { flexDirection: "row", alignItems: "center", gap: space.sm },
   planLabel: { ...type.heading, color: colors.text },
   planSub: { ...type.meta, color: colors.muted, marginTop: 2 },
   planPrice: { ...type.heading, color: colors.text },
-  badge: { backgroundColor: colors.ember, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2 },
-  badgeText: { ...type.meta, color: "#1A0E08", fontWeight: "800", letterSpacing: 0.5 },
+  badge: { backgroundColor: colors.lilac, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2 },
+  badgeText: { ...type.meta, color: colors.ink, fontWeight: "800", letterSpacing: 0.5 },
   footer: { padding: space.xl, gap: space.md },
   fine: { ...type.meta, color: colors.faint, textAlign: "center", lineHeight: 16 },
   restore: { alignSelf: "center", padding: space.sm },

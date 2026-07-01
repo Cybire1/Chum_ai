@@ -23,6 +23,17 @@ export const runtimeConfig = {
   zeroGNetwork: process.env.ZERO_G_NETWORK?.trim() || "testnet",
   zeroGPrivateKey: process.env.ZERO_G_PRIVATE_KEY?.trim() || "",
   zeroGProviderAddress: process.env.ZERO_G_PROVIDER_ADDRESS?.trim() || "",
+  chatModelPreference:
+    process.env.HURU_CHAT_MODEL?.trim() || "deepseek-v4-flash",
+  visionModelPreference:
+    process.env.HURU_VISION_MODEL?.trim() || "qwen3-vl",
+  visionRequestTimeoutMs:
+    Number.parseInt(
+      process.env.HURU_VISION_REQUEST_TIMEOUT_MS ||
+        process.env.HURU_PROVIDER_REQUEST_TIMEOUT_MS ||
+        "45000",
+      10,
+    ) || 45000,
   rateLimitPerMinute:
     Number.parseInt(process.env.HURU_RATE_LIMIT_PER_MINUTE || "60", 10) || 60,
   rateLimitPerDay:
@@ -41,7 +52,21 @@ export const runtimeConfig = {
   storageNodeUrl: process.env.ZERO_G_STORAGE_NODE_URL?.trim() || "",
   storageIndexerUrl: process.env.ZERO_G_INDEXER_URL?.trim() || "",
   storageKvUrl: process.env.ZERO_G_KV_URL?.trim() || "",
+  kvMirrorEnabled:
+    (process.env.HURU_KV_MIRROR_ENABLED?.trim().toLowerCase() ?? "true") !== "false",
+  kvMirrorPath:
+    process.env.HURU_KV_MIRROR_PATH?.trim() || ".huru/kv-mirror.json",
+  kvMirrorSecret:
+    process.env.HURU_KV_MIRROR_SECRET?.trim() ||
+    process.env.HURU_CONSUMER_TOKEN_SECRET?.trim() ||
+    process.env.ZERO_G_PRIVATE_KEY?.trim() ||
+    process.env.HURU_BOOTSTRAP_API_KEY?.trim() ||
+    "dev-huru-kv-mirror-secret-change-me",
   storageFlowContractAddress: process.env.ZERO_G_FLOW_CONTRACT?.trim() || "",
+  agentNftAddress: process.env.HURU_AGENT_NFT_ADDRESS?.trim() || "",
+  agentNftChainExplorerBase:
+    process.env.HURU_AGENT_NFT_EXPLORER_BASE?.trim() ||
+    "https://chainscan-galileo.0g.ai",
   storageMaxFileSizeBytes:
     (Number.parseInt(process.env.HURU_STORAGE_MAX_FILE_SIZE_MB || "10", 10) || 10) * 1024 * 1024,
   storageCreditsPerTenKb:

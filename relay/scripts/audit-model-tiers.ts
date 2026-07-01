@@ -19,7 +19,7 @@
 import { config as loadEnv } from "dotenv";
 import { resolve } from "node:path";
 import { ethers } from "ethers";
-import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
+import { createZGComputeNetworkBroker } from "@0gfoundation/0g-compute-ts-sdk";
 import { getModelTier, type ModelTier } from "../src/lib/huru/model-tiers";
 
 loadEnv({ path: resolve(process.cwd(), ".env.local") });

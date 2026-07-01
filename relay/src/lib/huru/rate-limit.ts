@@ -71,7 +71,6 @@ export function checkRateLimit(projectPublicId: string): RateLimitResult {
 
   refillBucket(bucket, now);
 
-  const minuteRemaining = Math.floor(bucket.tokens);
   const dailyRemaining = runtimeConfig.rateLimitPerDay - bucket.dailyCount;
 
   if (bucket.tokens < 1) {

@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
 			},
 			{
 				verified: true,
-				verificationMode: "tee",
+				verificationMode: "unknown",
 				provider: "0g-storage",
 			},
 			responseBody,

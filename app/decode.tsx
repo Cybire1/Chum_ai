@@ -1,13 +1,16 @@
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Button } from "../components/Button";
 import { DecodeCard } from "../components/DecodeCard";
 import { Skeleton } from "../components/Skeleton";
-import { rizzDecode } from "../lib/api";
+import { ZeroGReceipt } from "../components/ZeroGReceipt";
+import { describeApiError, rizzDecode } from "../lib/api";
 import { verdictLabel } from "../lib/format";
-import { haptic, PressableScale } from "../lib/motion";
+import { getPrivateMemoryState } from "../lib/memory";
+import { haptic } from "../lib/motion";
 import { setSession, useSession } from "../lib/store";
 import { colors, radius, space, type } from "../lib/theme";
 import type { DecodeResponse } from "../lib/types";
@@ -15,21 +18,37 @@ import type { DecodeResponse } from "../lib/types";
 export default function Decode() {
   const { conversation, contextNote, decode } = useSession();
   const [loading, setLoading] = useState(!decode);
+  const [error, setError] = useState<string | null>(null);
+  const [memoryRoot, setMemoryRoot] = useState<string | null>(null);
+
+  const runDecode = useCallback(async () => {
+    if (conversation.length === 0) {
+      setError("Paste a conversation first.");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await rizzDecode(conversation, contextNote || undefined);
+      setSession({ decode: r, lastReceipt: r.huru });
+      haptic("success");
+    } catch (err) {
+      setError(describeApiError(err, "Couldn't read this chat. Tap to try again."));
+      haptic("warning");
+    } finally {
+      setLoading(false);
+    }
+  }, [conversation, contextNote]);
+
+  useEffect(() => {
+    getPrivateMemoryState().then((s) => setMemoryRoot(s.lastRootHash)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (decode) return;
-    (async () => {
-      try {
-        const r = await rizzDecode(conversation, contextNote || undefined);
-        setSession({ decode: r });
-        haptic("success");
-      } catch {
-        haptic("warning");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [conversation, contextNote, decode]);
+    runDecode();
+  }, [decode, runDecode]);
 
   const share = async (d: DecodeResponse) => {
     try {
@@ -43,17 +62,10 @@ export default function Decode() {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-        <View style={styles.nav}>
-          <PressableScale onPress={() => router.back()} accessibilityLabel="Back" style={styles.back}>
-            <Text style={styles.backGlyph}>‹</Text>
-          </PressableScale>
-          <Text style={styles.navTitle}>Decode</Text>
-          <View style={{ width: 36 }} />
-        </View>
+      <SafeAreaView style={{ flex: 1 }} edges={["bottom"]}>
 
         <ScrollView contentContainerStyle={styles.scroll}>
-          {loading || !decode ? (
+          {loading ? (
             <View style={styles.skel}>
               <Skeleton width="50%" height={14} />
               <Skeleton width="70%" height={28} />
@@ -61,7 +73,7 @@ export default function Decode() {
               <Skeleton width="90%" height={16} />
               <Skeleton width="80%" height={16} />
             </View>
-          ) : (
+          ) : decode ? (
             <DecodeCard
               data={decode}
               onShare={() => share(decode)}
@@ -70,8 +82,15 @@ export default function Decode() {
                 router.replace("/reveal");
               }}
             />
+          ) : (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorTitle}>AI could not read this yet</Text>
+              <Text style={styles.errorBody}>{error ?? "Try again."}</Text>
+              <Button label="Try again" onPress={runDecode} style={{ marginTop: space.lg }} />
+            </View>
           )}
-          <Text style={styles.trust}>🔒 Sealed enclave · nothing stored</Text>
+          {!loading && decode ? <ZeroGReceipt receipt={decode.huru} memoryRootHash={memoryRoot} /> : null}
+          <Text style={styles.trust}>Private by default · memory only when you allow it</Text>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -89,9 +108,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
+    borderTopColor: colors.topHi,
     padding: space.xl,
     gap: space.md,
   },
+  errorBox: {
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    borderTopColor: colors.topHi,
+    padding: space.xl,
+  },
+  errorTitle: { ...type.heading, color: colors.text },
+  errorBody: { ...type.body, color: colors.dim, marginTop: space.sm, lineHeight: 22 },
   trust: { ...type.meta, color: colors.faint, textAlign: "center", marginTop: space.xl },
 });

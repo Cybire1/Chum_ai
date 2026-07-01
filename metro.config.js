@@ -4,12 +4,14 @@ const { getDefaultConfig } = require("expo/metro-config");
 // mobile app's Metro graph so it isn't bundled or watched as part of the app.
 const config = getDefaultConfig(__dirname);
 
-const relayExclude = /.*\/relay\/.*/;
+// /relay (Huru gateway) and /inft (ERC-7857 Hardhat workspace) are separate
+// projects — keep both out of the mobile app's Metro graph.
+const excludes = [/.*\/relay\/.*/, /.*\/inft\/.*/];
 const existing = config.resolver.blockList;
 config.resolver.blockList = Array.isArray(existing)
-  ? [...existing, relayExclude]
+  ? [...existing, ...excludes]
   : existing
-    ? [existing, relayExclude]
-    : [relayExclude];
+    ? [existing, ...excludes]
+    : excludes;
 
 module.exports = config;

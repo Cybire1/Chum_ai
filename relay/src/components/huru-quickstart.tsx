@@ -169,8 +169,10 @@ function ResponsePanel({ sample }: { sample: Sample }) {
 
   React.useEffect(() => {
     if (!running) return;
-    setChars(0);
-    setVerified(false);
+    const reset = setTimeout(() => {
+      setChars(0);
+      setVerified(false);
+    }, 0);
     const t0 = setTimeout(() => {
       const interval = setInterval(() => {
         setChars((c) => {
@@ -185,7 +187,10 @@ function ResponsePanel({ sample }: { sample: Sample }) {
       }, 18);
       return () => clearInterval(interval);
     }, 280);
-    return () => clearTimeout(t0);
+    return () => {
+      clearTimeout(reset);
+      clearTimeout(t0);
+    };
   }, [fullText, running]);
 
   const replay = () => setRunning(true);

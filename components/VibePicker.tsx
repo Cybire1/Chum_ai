@@ -34,15 +34,19 @@ export function VibePicker({
             style={[
               styles.pill,
               {
-                borderColor: active ? c : colors.border,
-                backgroundColor: active ? `${c}22` : "transparent",
+                // ACTIVE = solid candy fill, no visible border (border matches
+                // the fill so layout stays 1px-consistent). REST = dark chip +
+                // hairline.
+                borderColor: active ? c : colors.hairline,
+                backgroundColor: active ? c : colors.chip,
               },
             ]}
           >
             <Text
               style={[
                 styles.label,
-                { color: active ? colors.text : colors.dim },
+                // INK CONTRACT: label on the bright pastel fill = colors.ink.
+                { color: active ? colors.ink : colors.dim },
               ]}
             >
               {vibeLabel[v]}
