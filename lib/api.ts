@@ -267,9 +267,11 @@ async function huruHeaders(
   await ensureAuth().catch(() => {});
   const token = await getToken();
   if (token) {
+    const authorization = `Bearer ${token}`;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: authorization,
+      "X-Huru-Authorization": authorization,
       "X-Huru-Api-Key": KEY,
       "Cache-Control": "no-store",
     };
@@ -279,6 +281,7 @@ async function huruHeaders(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${KEY}`,
+    "X-Huru-Authorization": `Bearer ${KEY}`,
     "X-Consumer-Email": await consumerEmail(),
     "Cache-Control": "no-store",
   };
