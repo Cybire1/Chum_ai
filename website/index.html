@@ -22,8 +22,13 @@
   [data-chum-root] header nav{gap:10px !important;padding:8px 8px 8px 16px !important}
   [data-chum-root] header nav a[href="#beta"]{padding:9px 15px !important;font-size:13px !important}
 
-  /* every 2-col grid -> single column */
-  [data-chum-root] div[style*="grid-template-columns"]{grid-template-columns:1fr !important;gap:30px !important}
+  /* every 2-col grid -> single column; don't stretch cards to equal height */
+  [data-chum-root] div[style*="grid-template-columns"]{grid-template-columns:1fr !important;gap:14px !important;align-items:start !important}
+  /* privacy section: shrink the oversized dark box + cards on mobile */
+  [data-chum-root] div[style*="84px 56px 76px"]{padding:40px 20px 36px !important}
+  [data-chum-root] div[style*="28px 26px"]{padding:22px 20px !important}
+  [data-chum-root] div[style*="64px 40px 70px"]{padding:44px 24px 46px !important}
+  [data-chum-root] div[style*="78px 34px 82px"]{padding:48px 24px 50px !important}
 
   /* tighten sections, neutralize fixed heights that break stacking */
   [data-chum-root] section{padding:52px 20px !important}
@@ -106,7 +111,7 @@
 
         <div style="position:absolute;left:calc(50% - 20px);top:72px;z-index:2;width:220px;padding:9px;background:linear-gradient(160deg,#23232a,#0a0a0d);border-radius:40px;box-shadow:0 40px 80px -30px rgba(14,14,18,.42),inset 0 0 0 1.5px rgba(255,255,255,.08);transform:rotate(6deg)">
           <div style="position:absolute;top:17px;left:50%;transform:translateX(-50%);width:76px;height:21px;background:#000;border-radius:999px;z-index:3"></div>
-          <img src="shots/coach.png" alt="Chum Coach — today's workout" style="width:100%;border-radius:32px">
+          <img src="shots/coach.png" alt="Chum Coach, today's workout" style="width:100%;border-radius:32px">
         </div>
 
         <div style="position:absolute;left:calc(50% - 222px);top:26px;z-index:3;width:244px;padding:10px;background:linear-gradient(160deg,#23232a,#0a0a0d);border-radius:44px;box-shadow:0 48px 90px -30px rgba(14,14,18,.5),inset 0 0 0 1.5px rgba(255,255,255,.09);transform:rotate(-3deg)">
@@ -138,7 +143,7 @@
       <div style="font-size:12px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:#9A9AA4;margin-bottom:16px">The playbook behind today&rsquo;s biggest AI apps</div>
       <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 16px;font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:clamp(1.4rem,2.8vw,2.15rem);letter-spacing:-.02em">
         <span>Millions already pay AI to <span style="color:var(--accent,#F5356E)">date better</span> and <span style="color:var(--accent,#F5356E)">train smarter</span></span>
-        <span style="font-size:15px;font-weight:500;color:#7A7A84;letter-spacing:0;font-family:'Hanken Grotesk',sans-serif">&mdash; rebuilt so your most private life stays yours.</span>
+        <span style="font-size:15px;font-weight:500;color:#7A7A84;letter-spacing:0;font-family:'Hanken Grotesk',sans-serif">, rebuilt so your most private life stays yours.</span>
       </div>
     </div>
   </section>
@@ -151,9 +156,9 @@
           <span style="width:7px;height:7px;border-radius:50%;background:var(--accent,#F5356E)"></span>Wingman &middot; Live
         </div>
         <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3.4rem);line-height:1.02;letter-spacing:-.03em;margin:0 0 20px">Never get left on read.</h2>
-        <p style="font-size:18px;color:#55555F;max-width:460px;margin:0 0 34px">Screenshot the chat or paste it in. Chum sends back three replies that sound like <span style="color:#0E0E12;font-weight:600">you</span> &mdash; playful, smooth, or bold. Decode whether they&rsquo;re actually into it, or write the perfect opener from a bio.</p>
+        <p style="font-size:18px;color:#55555F;max-width:460px;margin:0 0 34px">Screenshot the chat or paste it in. Chum sends back three replies that sound like <span style="color:#0E0E12;font-weight:600">you</span>, playful, smooth, or bold. Decode whether they&rsquo;re actually into it, or write the perfect opener from a bio.</p>
         <div style="display:flex;flex-direction:column;margin-bottom:30px">
-          <div style="display:flex;gap:18px;align-items:flex-start;padding:17px 0;border-top:1px solid rgba(14,14,18,.09)"><span style="font-family:'Schibsted Grotesk',sans-serif;font-size:13px;color:var(--accent,#F5356E);font-weight:600;padding-top:2px">01</span><div><div style="font-weight:600;font-size:17px">Three replies, in your voice</div><div style="font-size:14.5px;color:#8A8A94;margin-top:2px">Playful, smooth, or bold &mdash; never a generic bot.</div></div></div>
+          <div style="display:flex;gap:18px;align-items:flex-start;padding:17px 0;border-top:1px solid rgba(14,14,18,.09)"><span style="font-family:'Schibsted Grotesk',sans-serif;font-size:13px;color:var(--accent,#F5356E);font-weight:600;padding-top:2px">01</span><div><div style="font-weight:600;font-size:17px">Three replies, in your voice</div><div style="font-size:14.5px;color:#8A8A94;margin-top:2px">Playful, smooth, or bold, never a generic bot.</div></div></div>
           <div style="display:flex;gap:18px;align-items:flex-start;padding:17px 0;border-top:1px solid rgba(14,14,18,.09)"><span style="font-family:'Schibsted Grotesk',sans-serif;font-size:13px;color:var(--accent,#F5356E);font-weight:600;padding-top:2px">02</span><div><div style="font-weight:600;font-size:17px">Decode the vibe</div><div style="font-size:14.5px;color:#8A8A94;margin-top:2px">Are they actually into it? Find out before you reply.</div></div></div>
           <div style="display:flex;gap:18px;align-items:flex-start;padding:17px 0;border-top:1px solid rgba(14,14,18,.09);border-bottom:1px solid rgba(14,14,18,.09)"><span style="font-family:'Schibsted Grotesk',sans-serif;font-size:13px;color:var(--accent,#F5356E);font-weight:600;padding-top:2px">03</span><div><div style="font-weight:600;font-size:17px">Openers from a bio</div><div style="font-size:14.5px;color:#8A8A94;margin-top:2px">The perfect first line, written for you.</div></div></div>
         </div>
@@ -169,7 +174,7 @@
         </div>
         <div style="position:relative;z-index:3;width:272px;padding:10px;background:linear-gradient(160deg,#23232a,#0a0a0d);border-radius:44px;box-shadow:0 44px 90px -32px rgba(14,14,18,.5),inset 0 0 0 1.5px rgba(255,255,255,.09)">
           <div style="position:absolute;top:19px;left:50%;transform:translateX(-50%);width:88px;height:23px;background:#000;border-radius:999px;z-index:3"></div>
-          <img src="shots/openers.png" alt="Chum Openers — write the first line from a bio" style="width:100%;border-radius:35px">
+          <img src="shots/openers.png" alt="Chum Openers, write the first line from a bio" style="width:100%;border-radius:35px">
         </div>
         <sc-if value="{{ showPhotos }}" hint-placeholder-val="{{ true }}">
           <div style="position:absolute;bottom:6px;right:2px;z-index:6;width:138px;padding:8px 8px 26px;background:#fff;border-radius:7px;box-shadow:0 24px 46px -16px rgba(14,14,18,.32);transform:rotate(5deg)">
@@ -204,7 +209,7 @@
           <span style="width:7px;height:7px;border-radius:50%;background:var(--accent,#F5356E)"></span>Coach &middot; Live
         </div>
         <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:clamp(2.2rem,4vw,3.4rem);line-height:1.02;letter-spacing:-.03em;margin:0 0 20px">A coach that actually knows you.</h2>
-        <p style="font-size:18px;color:#55555F;max-width:470px;margin:0 0 32px">Tell it your goal, your gear, your schedule. Get a real, reusable plan, a guided session with per-set timers, and progress tracked from your actual numbers &mdash; private by default, no data broker in sight.</p>
+        <p style="font-size:18px;color:#55555F;max-width:470px;margin:0 0 32px">Tell it your goal, your gear, your schedule. Get a real, reusable plan, a guided session with per-set timers, and progress tracked from your actual numbers, private by default, no data broker in sight.</p>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
           <div style="background:#fff;border:1px solid rgba(14,14,18,.08);border-radius:16px;padding:18px 16px"><div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:16px;margin-bottom:5px">AI plan builder</div><div style="font-size:13px;color:#8A8A94;line-height:1.45">Built around your gear &amp; week.</div></div>
           <div style="background:#fff;border:1px solid rgba(14,14,18,.08);border-radius:16px;padding:18px 16px"><div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:700;font-size:16px;margin-bottom:5px">Guided sessions</div><div style="font-size:13px;color:#8A8A94;line-height:1.45">Per-set timers, cue by cue.</div></div>
@@ -221,7 +226,7 @@
         <div style="text-align:center;max-width:720px;margin:0 auto 52px">
           <div style="display:inline-flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--accent,#F5356E);margin-bottom:22px;border:1px solid color-mix(in srgb,var(--accent,#F5356E) 42%,transparent);padding:7px 15px;border-radius:999px">Private by physics</div>
           <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:clamp(2.1rem,4.2vw,3.5rem);line-height:1.03;letter-spacing:-.03em;margin:0 0 22px">The one AI you can trust with the real stuff.</h2>
-          <p style="font-size:17.5px;line-height:1.55;color:rgba(255,255,255,.66);margin:0">Every message runs inside a sealed 0G enclave &mdash; secure hardware the operator physically can&rsquo;t see into. Your chats aren&rsquo;t logged. Your memory is encrypted. It isn&rsquo;t a privacy policy you take on faith. It&rsquo;s the architecture.</p>
+          <p style="font-size:17.5px;line-height:1.55;color:rgba(255,255,255,.66);margin:0">Every message runs inside a sealed 0G enclave, secure hardware the operator physically can&rsquo;t see into. Your chats aren&rsquo;t logged. Your memory is encrypted. It isn&rsquo;t a privacy policy you take on faith. It&rsquo;s the architecture.</p>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
           <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:28px 26px">
@@ -252,7 +257,7 @@
       <div>
         <div style="display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent,#F5356E);margin-bottom:22px">Own it</div>
         <h2 style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:clamp(2.2rem,4.2vw,3.5rem);line-height:1.0;letter-spacing:-.03em;margin:0 0 20px">It&rsquo;s yours. Forever.</h2>
-        <p style="font-size:18px;color:#55555F;max-width:480px;margin:0 0 30px">Your Chum &mdash; its voice, everything it&rsquo;s learned about you &mdash; is an asset you own on-chain, not an account we rent you. Take it anywhere. We can&rsquo;t sell it, and we can&rsquo;t read it.</p>
+        <p style="font-size:18px;color:#55555F;max-width:480px;margin:0 0 30px">Your Chum, its voice, everything it&rsquo;s learned about you, is an asset you own on-chain, not an account we rent you. Take it anywhere. We can&rsquo;t sell it, and we can&rsquo;t read it.</p>
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px">
           <span style="display:inline-flex;align-items:center;gap:7px;background:#F7F7F8;border:1px solid rgba(14,14,18,.1);font-size:14px;font-weight:600;padding:9px 15px;border-radius:999px"><span style="color:var(--accent,#F5356E)">&#9670;</span> ERC-7857 iNFT</span>
           <span style="display:inline-flex;align-items:center;gap:7px;background:#F7F7F8;border:1px solid rgba(14,14,18,.1);font-size:14px;font-weight:600;padding:9px 15px;border-radius:999px"><span style="color:var(--accent,#F5356E)">&#9670;</span> Portable &amp; yours</span>
@@ -267,7 +272,7 @@
         <div aria-hidden="true" style="position:absolute;width:360px;height:400px;border-radius:44px;background:radial-gradient(circle at 50% 34%,color-mix(in srgb,var(--accent,#F5356E) 20%,transparent),transparent 60%);filter:blur(26px)"></div>
         <div style="position:relative;z-index:2;width:278px;padding:10px;background:linear-gradient(160deg,#23232a,#0a0a0d);border-radius:44px;box-shadow:0 48px 96px -34px rgba(14,14,18,.5),inset 0 0 0 1.5px rgba(255,255,255,.09);transform:rotate(-2deg)">
           <div style="position:absolute;top:20px;left:50%;transform:translateX(-50%);width:90px;height:24px;background:#000;border-radius:999px;z-index:3"></div>
-          <img src="shots/own.png" alt="Own Your Chum — on-chain ownership card" style="width:100%;border-radius:35px">
+          <img src="shots/own.png" alt="Own Your Chum, on-chain ownership card" style="width:100%;border-radius:35px">
         </div>
       </div>
     </div>
@@ -323,7 +328,7 @@
         </form>
         <div id="waitlist-success" style="display:none;align-items:center;gap:11px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:14px 24px;font-size:16.5px;font-weight:600">
           <span style="width:24px;height:24px;border-radius:50%;background:#fff;color:var(--accent,#F5356E);display:flex;align-items:center;justify-content:center;font-size:14px">&#10003;</span>
-          You&rsquo;re on the list &mdash; watch your inbox.
+          You&rsquo;re on the list, watch your inbox.
         </div>
         <div style="margin-top:20px;font-size:13px;color:rgba(255,255,255,.72)">Pay in &#8358; or $ &middot; Nothing stored, ever</div>
       </div>
@@ -335,7 +340,7 @@
       <div style="display:flex;flex-wrap:wrap;gap:34px;justify-content:space-between;align-items:flex-start;margin-bottom:40px">
         <div style="max-width:340px">
           <div style="font-family:'Schibsted Grotesk',sans-serif;font-weight:800;font-size:23px;letter-spacing:-.03em;margin-bottom:12px">chum</div>
-          <p style="font-size:15px;color:#7A7A84;margin:0">The private AI you actually own. One app for your whole life &mdash; built on 0G.</p>
+          <p style="font-size:15px;color:#7A7A84;margin:0">The private AI you actually own. One app for your whole life, built on 0G.</p>
         </div>
         <div style="display:flex;gap:54px;font-size:15px">
           <div style="display:flex;flex-direction:column;gap:12px">
