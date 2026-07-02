@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chum, get early access</title>
+<meta name="description" content="Be first to try Chum, the private AI for your dating life, workouts and notes, sealed on 0G. iOS beta invites drop soon, grab your spot.">
+<meta name="theme-color" content="#0B0A0E">
+<meta property="og:title" content="Chum, get early access">
+<meta property="og:description" content="The private AI you actually own. Be first on the beta.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Schibsted+Grotesk:wght@600;700;800;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--pink:#F5356E;--violet:#9F84FF;--ink:#0B0A0E;--dim:rgba(255,255,255,.6)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--ink);color:#fff;font-family:'Hanken Grotesk',system-ui,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;position:relative}
+  a{color:inherit;text-decoration:none}
+
+  /* animated aurora */
+  .aurora{position:fixed;inset:-20%;z-index:0;pointer-events:none;filter:blur(80px);opacity:.85}
+  .aurora span{position:absolute;border-radius:50%;mix-blend-mode:screen}
+  .aurora .a{width:60vw;height:60vw;left:-10%;top:-15%;background:radial-gradient(circle,rgba(245,53,110,.55),transparent 62%);animation:drift1 22s ease-in-out infinite}
+  .aurora .b{width:55vw;height:55vw;right:-12%;top:10%;background:radial-gradient(circle,rgba(159,132,255,.42),transparent 62%);animation:drift2 26s ease-in-out infinite}
+  .aurora .c{width:50vw;height:50vw;left:20%;bottom:-25%;background:radial-gradient(circle,rgba(245,53,110,.30),transparent 64%);animation:drift3 30s ease-in-out infinite}
+  @keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(8%,10%) scale(1.15)}}
+  @keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-10%,8%) scale(1.1)}}
+  @keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(6%,-8%) scale(1.2)}}
+  .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(120% 90% at 50% 40%,transparent 40%,rgba(11,10,14,.6) 100%)}
+
+  header{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:26px 30px;max-width:1200px;margin:0 auto}
+  .logo{display:flex;align-items:center;gap:9px;font-family:'Schibsted Grotesk';font-weight:800;font-size:23px;letter-spacing:-.03em}
+  .logo .dot{width:11px;height:11px;border-radius:50%;background:var(--pink);box-shadow:0 0 18px rgba(245,53,110,.8);animation:pulse 2.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 9px rgba(245,53,110,.5)}50%{box-shadow:0 0 22px rgba(245,53,110,1)}}
+  .back{font-size:14px;font-weight:600;color:var(--dim);border:1px solid rgba(255,255,255,.14);padding:9px 16px;border-radius:999px;transition:.2s}
+  .back:hover{color:#fff;border-color:rgba(255,255,255,.35)}
+
+  main{position:relative;z-index:5;max-width:1200px;margin:0 auto;padding:20px 30px 80px;display:grid;grid-template-columns:1.06fr .94fr;gap:50px;align-items:center;min-height:calc(100vh - 150px)}
+  .content>*{opacity:0;transform:translateY(20px);animation:rise .8s cubic-bezier(.2,.8,.2,1) forwards}
+  .content>*:nth-child(1){animation-delay:.05s}.content>*:nth-child(2){animation-delay:.14s}.content>*:nth-child(3){animation-delay:.23s}.content>*:nth-child(4){animation-delay:.32s}.content>*:nth-child(5){animation-delay:.41s}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:'JetBrains Mono';font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--pink);border:1px solid rgba(245,53,110,.4);background:rgba(245,53,110,.08);padding:8px 15px;border-radius:999px;margin-bottom:26px}
+  .eyebrow .lg{width:6px;height:6px;border-radius:50%;background:var(--pink);box-shadow:0 0 10px var(--pink)}
+  h1{font-family:'Schibsted Grotesk';font-weight:800;font-size:clamp(2.7rem,6vw,4.6rem);line-height:.98;letter-spacing:-.035em;margin-bottom:22px}
+  h1 .grad{background:linear-gradient(100deg,var(--pink),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{font-size:clamp(17px,2vw,20px);color:var(--dim);max-width:520px;margin-bottom:36px;line-height:1.5}
+
+  form{display:flex;gap:10px;max-width:520px;flex-wrap:wrap}
+  .field{flex:1;min-width:240px;position:relative}
+  input[type=email]{width:100%;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);border-radius:16px;padding:17px 20px;color:#fff;font-family:inherit;font-size:16px;outline:none;transition:border-color .2s,box-shadow .2s,background .2s}
+  input[type=email]::placeholder{color:rgba(255,255,255,.4)}
+  input[type=email]:focus{border-color:var(--pink);background:rgba(245,53,110,.06);box-shadow:0 0 0 4px rgba(245,53,110,.14)}
+  button{display:inline-flex;align-items:center;gap:9px;background:var(--pink);color:#fff;font-family:'Schibsted Grotesk';font-weight:700;font-size:16px;border:none;padding:17px 26px;border-radius:16px;cursor:pointer;transition:transform .18s,box-shadow .3s,background .2s;box-shadow:0 14px 40px -12px rgba(245,53,110,.7)}
+  button:hover{transform:translateY(-2px);box-shadow:0 20px 50px -12px rgba(245,53,110,.85)}
+  button:disabled{opacity:.7;cursor:default;transform:none}
+  button .arw{transition:transform .25s ease}
+  button:hover .arw{transform:translateX(4px)}
+
+  .success{display:none;align-items:center;gap:16px;max-width:520px;background:rgba(255,255,255,.05);border:1px solid rgba(245,53,110,.35);border-radius:18px;padding:20px 24px}
+  .success.show{display:flex;animation:rise .5s ease forwards}
+  .check{width:46px;height:46px;flex:none;border-radius:50%;background:var(--pink);display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(245,53,110,.6)}
+  .check svg{stroke-dasharray:24;stroke-dashoffset:24;animation:draw .5s .1s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .success b{font-family:'Schibsted Grotesk';font-size:19px;display:block}
+  .success span{color:var(--dim);font-size:15px}
+
+  .trust{margin-top:26px;font-size:13.5px;color:rgba(255,255,255,.45);display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center}
+  .trust i{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.3);display:inline-block}
+  .verify{margin-top:34px;font-family:'JetBrains Mono';font-size:11px;color:rgba(255,255,255,.32);letter-spacing:.02em}
+
+  /* device */
+  .device-wrap{position:relative;display:flex;justify-content:center;align-items:center;animation:rise 1s .3s cubic-bezier(.2,.8,.2,1) both}
+  .device-glow{position:absolute;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(245,53,110,.4),transparent 62%);filter:blur(20px)}
+  .device{position:relative;width:min(320px,80%);padding:12px;border-radius:44px;background:linear-gradient(165deg,rgba(255,255,255,.18),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);box-shadow:0 60px 120px -40px rgba(0,0,0,.8);transform:rotate(4deg);animation:float 6s ease-in-out infinite}
+  @keyframes float{0%,100%{transform:rotate(4deg) translateY(0)}50%{transform:rotate(4deg) translateY(-14px)}}
+  .device img{width:100%;display:block;border-radius:33px}
+  .chip{position:absolute;background:rgba(20,19,24,.82);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:11px 15px;box-shadow:0 20px 50px rgba(0,0,0,.5);font-size:13px;line-height:1.35}
+  .chip b{font-family:'Schibsted Grotesk';display:block;font-size:14px;margin-bottom:1px}
+  .chip.one{top:14%;left:-8%;animation:float 5s ease-in-out infinite}
+  .chip.two{bottom:16%;right:-6%;animation:float 5.6s .4s ease-in-out infinite}
+
+  @media(max-width:900px){
+    main{grid-template-columns:1fr;gap:34px;padding-top:8px;min-height:calc(100vh - 150px);align-content:center}
+    .device-wrap{order:2;margin-top:6px}
+    .device{transform:rotate(3deg);width:min(260px,72%)}
+    .chip{display:none}
+    h1{font-size:clamp(2.4rem,9vw,3.4rem)}
+  }
+  @media(max-width:560px){
+    header{padding:20px}
+    main{padding:6px 22px 40px;min-height:calc(100dvh - 130px);align-content:center}
+    form{flex-direction:column}
+    button{justify-content:center}
+    .device-wrap{display:none}
+    .content>*{max-width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="aurora"><span class="a"></span><span class="b"></span><span class="c"></span></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<header>
+  <a class="logo" href="/"><span class="dot"></span>chum</a>
+  <a class="back" href="/">&larr; Back to site</a>
+</header>
+
+<main>
+  <div class="content">
+    <div class="eyebrow"><span class="lg"></span>Private beta · iOS</div>
+    <h1>Be first to try <span class="grad">Chum</span>.</h1>
+    <p class="sub">One private AI for your dating life, your workouts, your notes. Sealed on 0G, so no one, not even us, can read it. iOS beta invites drop soon, grab your spot.</p>
+
+    <form id="wl" action="https://formspree.io/f/FORMSPREE_ID" method="POST">
+      <div class="field"><input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></div>
+      <button type="submit">Get early access <span class="arw">&rarr;</span></button>
+    </form>
+    <div class="success" id="ok">
+      <div class="check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+      <div><b>You're on the list.</b><span>Watch your inbox, your invite is on its way.</span></div>
+    </div>
+
+    <div class="trust"><span>No spam, just your invite</span><i></i><span>Pay in &#8358; or $</span><i></i><span>Nothing stored, ever</span></div>
+    <div class="verify">Live on 0G mainnet · own your agent as an on-chain iNFT</div>
+  </div>
+
+  <div class="device-wrap">
+    <div class="device-glow"></div>
+    <div class="device"><img src="../shots/reveal.png" alt="Chum writes three dating replies in your voice"></div>
+    <div class="chip one"><b>3 replies, 1 tap</b>In your voice.</div>
+    <div class="chip two"><b>Sealed on 0G</b>Even we can't read it.</div>
+  </div>
+</main>
+
+<script>
+  document.getElementById('wl').addEventListener('submit', function(e){
+    e.preventDefault();
+    var f = this, btn = f.querySelector('button'), ok = document.getElementById('ok');
+    var reveal = function(){ f.style.display='none'; ok.classList.add('show'); burst(); };
+    if (f.action.indexOf('FORMSPREE_ID') !== -1){ console.warn('Waitlist: set your Formspree form id to capture emails'); reveal(); return; }
+    btn.textContent = 'Joining…'; btn.disabled = true;
+    fetch(f.action, { method:'POST', body:new FormData(f), headers:{ 'Accept':'application/json' } })
+      .then(function(r){ if(r.ok){ reveal(); } else { btn.innerHTML='Try again'; btn.disabled=false; } })
+      .catch(function(){ btn.innerHTML='Try again'; btn.disabled=false; });
+  });
+  // tiny confetti burst on success
+  function burst(){
+    var ok = document.getElementById('ok'), rect = ok.getBoundingClientRect();
+    for(var i=0;i<16;i++){
+      var d=document.createElement('div'), a=Math.random()*Math.PI*2, dist=40+Math.random()*90;
+      d.style.cssText='position:fixed;left:'+(rect.left+30)+'px;top:'+(rect.top+30)+'px;width:8px;height:8px;border-radius:2px;z-index:50;pointer-events:none;background:'+(i%2?'#F5356E':'#9F84FF')+';transition:transform .9s cubic-bezier(.1,.7,.3,1),opacity .9s ease';
+      document.body.appendChild(d);
+      (function(el,x,y){ requestAnimationFrame(function(){ el.style.transform='translate('+x+'px,'+y+'px) rotate('+(Math.random()*360)+'deg)'; el.style.opacity='0'; }); setTimeout(function(){el.remove();},950); })(d, Math.cos(a)*dist, Math.sin(a)*dist);
+    }
+  }
+</script>
+</body>
+</html>
