@@ -51,6 +51,11 @@
   [data-chum-root] div[style*="blur(12px)"]{display:none !important}
   [data-chum-root] div[style*="blur(24px)"]{display:none !important}
   [data-chum-root] div[style*="flex-direction: column"][style*="position: absolute"]{display:none !important}
+
+  /* hero (mobile): show one phone, tighten the gap above it */
+  [data-chum-root] #top div:has(> img[src*="reveal.png"]){display:none !important}
+  [data-chum-root] #top div[style*="grid-template-columns"]{gap:2px !important}
+  [data-chum-root] #top{padding:14px 20px 36px !important}
 }
 </style>
 </head>
