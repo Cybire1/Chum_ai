@@ -115,8 +115,8 @@
     <h1>Be first to try <span class="grad">Chum</span>.</h1>
     <p class="sub">One private AI for your dating life, your workouts, your notes. Sealed on 0G, so no one, not even us, can read it. iOS beta invites drop soon, grab your spot.</p>
 
-    <form id="wl" action="https://formspree.io/f/FORMSPREE_ID" method="POST">
-      <div class="field"><input type="email" name="email" required placeholder="you@email.com" autocomplete="email"></div>
+    <form id="wl">
+      <div class="field"><input type="email" id="wl-email" name="email" required placeholder="you@email.com" autocomplete="email"></div>
       <button type="submit">Get early access <span class="arw">&rarr;</span></button>
     </form>
     <div class="success" id="ok">
@@ -137,14 +137,17 @@
 </main>
 
 <script>
+  var WAITLIST_ENDPOINT = 'https://huruai.xyz/api/waitlist';
   document.getElementById('wl').addEventListener('submit', function(e){
     e.preventDefault();
     var f = this, btn = f.querySelector('button'), ok = document.getElementById('ok');
+    var email = (document.getElementById('wl-email').value || '').trim();
+    if (!email) return;
     var reveal = function(){ f.style.display='none'; ok.classList.add('show'); burst(); };
-    if (f.action.indexOf('FORMSPREE_ID') !== -1){ console.warn('Waitlist: set your Formspree form id to capture emails'); reveal(); return; }
     btn.textContent = 'Joining…'; btn.disabled = true;
-    fetch(f.action, { method:'POST', body:new FormData(f), headers:{ 'Accept':'application/json' } })
-      .then(function(r){ if(r.ok){ reveal(); } else { btn.innerHTML='Try again'; btn.disabled=false; } })
+    fetch(WAITLIST_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email: email, source: 'waitlist-page' }) })
+      .then(function(r){ return r.json().catch(function(){ return { ok: r.ok }; }); })
+      .then(function(d){ if(d && d.ok){ reveal(); } else { btn.innerHTML='Try again'; btn.disabled=false; } })
       .catch(function(){ btn.innerHTML='Try again'; btn.disabled=false; });
   });
   // tiny confetti burst on success
